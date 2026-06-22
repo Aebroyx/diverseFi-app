@@ -1,5 +1,6 @@
 import { User } from '@/store/features/authSlice';
 import axiosInstance, { handleApiError } from '@/lib/axios';
+import { FilterCondition } from '@/components/modals/AdvancedFilterModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
@@ -34,35 +35,57 @@ interface LoginResponse {
   user: RegisterResponse;
 }
 
+interface RoleResponse {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 interface GetUserResponse {
   id: number;
   username: string;
   email: string;
   name: string;
-  role: string;
+  role: RoleResponse;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
 }
 
 interface CreateUserRequest {
   name: string;
   email: string;
-  role: string;
+  username: string;
+  password: string;
+  role_id: number;
+  is_active: boolean;
 }
 
 interface ErrorResponse {
   status: 'error';
   message: string;
   code?: string;
-  details?: any;
+  details?: unknown;
 }
 
 interface UpdateUserRequest {
   name: string;
   email: string;
-  role: string;
+  role_id: number;
   username: string;
   password: string;
+  is_active: boolean;
+}
+
+interface ResetPasswordRequest {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
 }
 
 // Response represents the standard API response structure
@@ -87,7 +110,7 @@ export interface GetAllUsersParams {
   search?: string;
   sortBy?: string;
   sortDesc?: boolean;
-  filters?: Record<string, any>;
+  filters?: FilterCondition[];
 }
 
 class UserService {
@@ -162,12 +185,11 @@ class UserService {
       if (params.search) queryParams.append('search', params.search);
       if (params.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params.sortDesc !== undefined) queryParams.append('sortDesc', params.sortDesc.toString());
-      if (params.filters) {
-        Object.entries(params.filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== '') {
-            queryParams.append(`filters[${key}]`, value.toString());
-          }
-        });
+      
+      // Handle advanced filter conditions
+      if (params.filters && params.filters.length > 0) {
+        // Send filters as JSON string in query params
+        queryParams.append('filters', JSON.stringify(params.filters));
       }
 
       const response = await axiosInstance.get<ApiResponse<PaginatedResponse<GetUserResponse>>>(`/users?${queryParams.toString()}`);
@@ -219,8 +241,17 @@ class UserService {
       throw handleApiError(error);
     }
   }
+
+  async resetPassword(id: string | number, data: ResetPasswordRequest): Promise<GetUserResponse> {
+    try {
+      const response = await axiosInstance.post<ApiResponse<GetUserResponse>>(`/user/reset-password/${id}`, data);
+      return response.data.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  }
   
 }
 
 export const userService = new UserService();
-export type { GetUserResponse, RegisterRequest, RegisterResponse, LoginRequest, TokenResponse, LoginResponse };
+export type { GetUserResponse, RegisterRequest, RegisterResponse, LoginRequest, TokenResponse, LoginResponse, ResetPasswordRequest };

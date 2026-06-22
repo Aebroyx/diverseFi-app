@@ -1,12 +1,8 @@
 'use client';
 
-import { useSelector } from 'react-redux';
-import { RootState } from '../store/store';
 import { Navigation } from '../components/Navigation';
 
 export default function Home() {
-  const { user } = useSelector((state: RootState) => state.auth);
-
   return (
     <Navigation>
       {/* Your page content goes here */}

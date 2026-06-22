@@ -1,23 +1,17 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 
-	"github.com/diverseFi/diverseFi-api/internal/config"
-	"github.com/diverseFi/diverseFi-api/internal/database"
-	"github.com/diverseFi/diverseFi-api/internal/handlers"
-	"github.com/diverseFi/diverseFi-api/internal/middleware"
-	"github.com/diverseFi/diverseFi-api/internal/services"
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
+	"github.com/Aebroyx/diverseFi-api/internal/config"
+	"github.com/Aebroyx/diverseFi-api/internal/database"
+	"github.com/Aebroyx/diverseFi-api/internal/handlers"
+	"github.com/Aebroyx/diverseFi-api/internal/logger"
+	"github.com/Aebroyx/diverseFi-api/internal/routes"
+	"github.com/Aebroyx/diverseFi-api/internal/services"
 )
 
 func main() {
-	// Create background context
-	ctx := context.Background()
-
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -29,113 +23,66 @@ func main() {
 		log.Fatalf("Invalid configuration: %v", err)
 	}
 
-	// Initialize database
+	// Initialize structured logger
+	jsonOutput := cfg.Environment == "production"
+	logger.Init("diversefi-api", cfg.LogLevel, jsonOutput)
+	logger.Info("Starting diverseFi API server...")
+
+	// Initialize database connection
 	db, err := database.NewConnection(cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Initialize Redis client
-	var redisClient *redis.Client
-	if cfg.UseRedis {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
-			Password: cfg.RedisPassword,
-			DB:       cfg.RedisDB,
-		})
-
-		// Test Redis connection
-		if err := redisClient.Ping(ctx).Err(); err != nil {
-			log.Printf("Warning: Failed to connect to Redis: %v. Running without Redis caching.", err)
-			redisClient = nil
-		} else {
-			log.Printf("Successfully connected to Redis at %s:%s", cfg.RedisHost, cfg.RedisPort)
-		}
+	// Run migrations and seeders (if enabled)
+	if err := db.Initialize(cfg); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
 	// Initialize services
-	userService := services.NewUserService(db.DB, cfg, redisClient)
+	tokenService := services.NewTokenService(db.DB, cfg)
+	auditService := services.NewAuditService(db.DB)
+	rateLimiterService := services.NewRateLimiterService(cfg)
+	userService := services.NewUserService(db.DB, cfg, tokenService)
+	userImportService := services.NewUserImportService(db.DB)
+	roleService := services.NewRoleService(db.DB, cfg)
+	roleImportService := services.NewRoleImportService(db.DB)
+	menuService := services.NewMenuService(db.DB, cfg)
+	menuImportService := services.NewMenuImportService(db.DB)
+	rightsAccessService := services.NewRightsAccessService(db.DB, cfg)
+	permissionService := services.NewPermissionService(db.DB, cfg, menuService)
+	searchService := services.NewSearchService(db.DB, cfg, permissionService)
+	emailTemplateService := services.NewEmailTemplateService(db.DB, cfg)
+	emailService := services.NewEmailService(db.DB, cfg, emailTemplateService)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userService)
-	userHandler := handlers.NewUserHandler(userService)
-
-	// Initialize router
-	router := gin.New() // Use gin.New() instead of gin.Default() to avoid default middleware
-
-	// Add logger middleware
-	router.Use(gin.Logger())
-
-	// Add CORS middleware
-	router.Use(func(c *gin.Context) {
-		// Log incoming request
-		log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
-
-		// Get allowed origins from config
-		allowedOrigin := cfg.CORSAllowedOrigins
-		if allowedOrigin == "" {
-			allowedOrigin = "http://localhost:3001" // fallback
-		}
-
-		// Set CORS headers
-		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
-
-		// Handle preflight
-		if c.Request.Method == "OPTIONS" {
-			log.Printf("Handling OPTIONS request for: %s", c.Request.URL.Path)
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	})
-
-	// Public routes
-	public := router.Group("/api")
-	{
-		// Auth routes
-		auth := public.Group("/auth")
-		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
-		}
+	h := &routes.Handlers{
+		Auth:          handlers.NewAuthHandler(userService, auditService),
+		User:          handlers.NewUserHandler(userService),
+		UserImport:    handlers.NewUserImportHandler(userImportService),
+		Role:          handlers.NewRoleHandler(roleService),
+		RoleImport:    handlers.NewRoleImportHandler(roleImportService),
+		Menu:          handlers.NewMenuHandler(menuService),
+		MenuImport:    handlers.NewMenuImportHandler(menuImportService),
+		RightsAccess:  handlers.NewRightsAccessHandler(rightsAccessService),
+		Search:        handlers.NewSearchHandler(searchService),
+		Token:         handlers.NewTokenHandler(tokenService, userService, cfg, db.DB),
+		Audit:         handlers.NewAuditHandler(auditService),
+		Email:         handlers.NewEmailHandler(emailService),
+		EmailTemplate: handlers.NewEmailTemplateHandler(emailTemplateService),
 	}
 
-	// Protected routes
-	protected := router.Group("/api")
-
-	// Use appropriate auth middleware based on Redis availability
-	if redisClient != nil {
-		protected.Use(middleware.Auth(cfg.JWTSecret, db.DB, redisClient))
-		log.Println("Using Redis-enabled auth middleware")
-	} else {
-		protected.Use(middleware.AuthWithoutRedis(cfg.JWTSecret, db.DB))
-		log.Println("Using database-only auth middleware")
+	// Initialize services struct for router
+	svc := &routes.Services{
+		Permission:  permissionService,
+		Audit:       auditService,
+		RateLimiter: rateLimiterService,
 	}
 
-	{
-		// AUTH ROUTES
-		protected.GET("/me", authHandler.GetMe)
-		protected.POST("/auth/logout", authHandler.Logout)
-		// USER ROUTES
-		protected.GET("/users", userHandler.GetAllUsers)
-		user := protected.Group("/user")
-		{
-			user.GET("/:id", userHandler.GetUserById)
-			user.POST("/create", userHandler.CreateUser)
-			user.PUT("/:id", userHandler.UpdateUser)
-			user.DELETE("/:id", userHandler.DeleteUser)
-			user.PUT("/:id/soft-delete", userHandler.SoftDeleteUser)
-		}
-	}
+	// Setup router
+	router := routes.SetupRouter(cfg, db.DB, h, svc)
 
-	// Start server
+	// Run the server
 	log.Printf("Server starting on %s", cfg.GetServerAddr())
-	if err := router.Run(cfg.GetServerAddr()); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	router.Run(cfg.GetServerAddr())
 }

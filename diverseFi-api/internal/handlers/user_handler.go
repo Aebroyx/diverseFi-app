@@ -3,10 +3,11 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/diverseFi/diverseFi-api/internal/common"
-	"github.com/diverseFi/diverseFi-api/internal/domain/models"
-	"github.com/diverseFi/diverseFi-api/internal/pagination"
-	"github.com/diverseFi/diverseFi-api/internal/services"
+	"github.com/Aebroyx/diverseFi-api/internal/common"
+	"github.com/Aebroyx/diverseFi-api/internal/domain/models"
+	"github.com/Aebroyx/diverseFi-api/internal/pagination"
+	"github.com/Aebroyx/diverseFi-api/internal/services"
+	"github.com/Aebroyx/diverseFi-api/internal/validators"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -17,9 +18,14 @@ type UserHandler struct {
 }
 
 func NewUserHandler(userService *services.UserService) *UserHandler {
+	validate := validator.New()
+	// Register custom validators
+	if err := validators.RegisterCustomValidators(validate); err != nil {
+		panic(err)
+	}
 	return &UserHandler{
 		userService: userService,
-		validate:    validator.New(),
+		validate:    validate,
 	}
 }
 
@@ -120,6 +126,11 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	user, err := h.userService.DeleteUser(c.Param("id"))
 	if err != nil {
+		// Check for specific error messages
+		if err.Error() == "cannot delete root user" {
+			common.SendError(c, http.StatusForbidden, "cannot delete root user", common.CodeForbidden, nil)
+			return
+		}
 		common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
 		return
 	}
@@ -127,12 +138,31 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	common.SendSuccess(c, http.StatusOK, "User deleted successfully", user)
 }
 
-func (h *UserHandler) SoftDeleteUser(c *gin.Context) {
-	user, err := h.userService.SoftDeleteUser(c.Param("id"))
-	if err != nil {
-		common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
+func (h *UserHandler) ResetUserPassword(c *gin.Context) {
+	userID := c.Param("id")
+	var req models.ResetUserPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.SendError(c, http.StatusBadRequest, "Invalid request body", common.CodeInvalidRequest, err.Error())
 		return
 	}
 
-	common.SendSuccess(c, http.StatusOK, "User soft deleted successfully", user)
+	// Validate request
+	if err := h.validate.Struct(req); err != nil {
+		common.SendError(c, http.StatusBadRequest, "Validation failed", common.CodeValidationError, err.Error())
+		return
+	}
+
+	user, err := h.userService.ResetUserPassword(userID, &req)
+	if err != nil {
+		switch err.Error() {
+		case "invalid current password":
+			common.SendError(c, http.StatusBadRequest, "Invalid current password", common.CodeBadRequest, nil)
+		case "new password and confirm password do not match":
+			common.SendError(c, http.StatusBadRequest, "New password and confirm password do not match", common.CodeValidationError, nil)
+		default:
+			common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
+		}
+		return
+	}
+	common.SendSuccess(c, http.StatusOK, "User password reset successfully", user)
 }

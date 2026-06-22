@@ -1,6 +1,7 @@
 package pagination
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -20,6 +21,35 @@ const (
 	RightJoin JoinType = "RIGHT"
 )
 
+// FilterOperator represents the type of filter operation
+type FilterOperator string
+
+const (
+	OpEquals             FilterOperator = "equals"
+	OpNotEquals          FilterOperator = "notEquals"
+	OpContains           FilterOperator = "contains"
+	OpNotContains        FilterOperator = "notContains"
+	OpStartsWith         FilterOperator = "startsWith"
+	OpEndsWith           FilterOperator = "endsWith"
+	OpGreaterThan        FilterOperator = "greaterThan"
+	OpLessThan           FilterOperator = "lessThan"
+	OpGreaterThanOrEqual FilterOperator = "greaterThanOrEqual"
+	OpLessThanOrEqual    FilterOperator = "lessThanOrEqual"
+	OpIs                 FilterOperator = "is"
+	OpIsNot              FilterOperator = "isNot"
+	OpIsEmpty            FilterOperator = "isEmpty"
+	OpIsNotEmpty         FilterOperator = "isNotEmpty"
+)
+
+// FilterCondition represents an advanced filter condition
+type FilterCondition struct {
+	ID       string         `json:"id"`
+	Field    string         `json:"field"`
+	Operator FilterOperator `json:"operator"`
+	Value    string         `json:"value"`
+	Logic    string         `json:"logic"` // "and" or "or"
+}
+
 // JoinConfig represents a join configuration
 type JoinConfig struct {
 	Table     string   // Table to join with
@@ -36,22 +66,37 @@ type SelectField struct {
 
 // QueryParams represents the common query parameters for pagination
 type QueryParams struct {
-	Page     int                    `json:"page" form:"page" binding:"min=1"`
-	PageSize int                    `json:"pageSize" form:"pageSize" binding:"min=1,max=100"`
-	Search   string                 `json:"search" form:"search"`
-	Filters  map[string]interface{} `json:"filters" form:"filters" binding:"dive"`
-	SortBy   string                 `json:"sortBy" form:"sortBy"`
-	SortDesc bool                   `json:"sortDesc" form:"sortDesc"`
-	Dates    map[string]DateRange   `json:"dates" form:"dates"`
+	Page             int                    `json:"page" form:"page" binding:"min=1"`
+	PageSize         int                    `json:"pageSize" form:"pageSize" binding:"min=1,max=100"`
+	Search           string                 `json:"search" form:"search"`
+	Filters          map[string]interface{} `json:"-" form:"-"` // Legacy filters (handled manually in Bind)
+	FilterConditions []FilterCondition      `json:"-" form:"-"` // Advanced filter conditions (handled manually in Bind)
+	SortBy           string                 `json:"sortBy" form:"sortBy"`
+	SortDesc         bool                   `json:"sortDesc" form:"sortDesc"`
+	Dates            map[string]DateRange   `json:"dates" form:"dates"`
 }
 
 // Custom binding for filters
 func (qp *QueryParams) Bind(c *gin.Context) error {
+	// Bind all standard query parameters (filters are excluded via form:"-" tag)
 	if err := c.ShouldBindQuery(qp); err != nil {
 		return err
 	}
 
-	// Handle filters separately
+	// Check if we have advanced filters in JSON format
+	filtersJSON := c.Query("filters")
+	if filtersJSON != "" {
+		// Try to parse as advanced filter conditions (new format)
+		var conditions []FilterCondition
+		if err := json.Unmarshal([]byte(filtersJSON), &conditions); err == nil {
+			qp.FilterConditions = conditions
+			return nil
+		}
+		// If parsing fails, it might be old format, continue to legacy handling
+	}
+
+	// Handle legacy filters separately (backward compatibility)
+	// Look for filters[field]=value format in query string
 	filters := make(map[string]interface{})
 	for key, values := range c.Request.URL.Query() {
 		if strings.HasPrefix(key, "filters[") && strings.HasSuffix(key, "]") {
@@ -62,7 +107,9 @@ func (qp *QueryParams) Bind(c *gin.Context) error {
 			}
 		}
 	}
-	qp.Filters = filters
+	if len(filters) > 0 {
+		qp.Filters = filters
+	}
 
 	return nil
 }
@@ -161,6 +208,38 @@ func (p *Paginator) buildJoinClause(query *gorm.DB, config PaginationConfig) *go
 	return query
 }
 
+// applyFilterCondition applies a single filter condition to the query
+func (p *Paginator) applyFilterCondition(condition FilterCondition, dbField string) (string, []interface{}) {
+	switch condition.Operator {
+	case OpEquals, OpIs:
+		return dbField + " = ?", []interface{}{condition.Value}
+	case OpNotEquals, OpIsNot:
+		return dbField + " != ?", []interface{}{condition.Value}
+	case OpContains:
+		return dbField + " ILIKE ?", []interface{}{"%" + condition.Value + "%"}
+	case OpNotContains:
+		return dbField + " NOT ILIKE ?", []interface{}{"%" + condition.Value + "%"}
+	case OpStartsWith:
+		return dbField + " ILIKE ?", []interface{}{condition.Value + "%"}
+	case OpEndsWith:
+		return dbField + " ILIKE ?", []interface{}{"%" + condition.Value}
+	case OpGreaterThan:
+		return dbField + " > ?", []interface{}{condition.Value}
+	case OpLessThan:
+		return dbField + " < ?", []interface{}{condition.Value}
+	case OpGreaterThanOrEqual:
+		return dbField + " >= ?", []interface{}{condition.Value}
+	case OpLessThanOrEqual:
+		return dbField + " <= ?", []interface{}{condition.Value}
+	case OpIsEmpty:
+		return "(" + dbField + " IS NULL OR " + dbField + " = '')", []interface{}{}
+	case OpIsNotEmpty:
+		return "(" + dbField + " IS NOT NULL AND " + dbField + " != '')", []interface{}{}
+	default:
+		return dbField + " = ?", []interface{}{condition.Value}
+	}
+}
+
 // buildWhereClause builds the WHERE clause for the query
 func (p *Paginator) buildWhereClause(query *gorm.DB, params QueryParams, config PaginationConfig) *gorm.DB {
 	// Apply base conditions
@@ -182,10 +261,42 @@ func (p *Paginator) buildWhereClause(query *gorm.DB, params QueryParams, config 
 		query = query.Where(strings.Join(searchConditions, " OR "), searchArgs...)
 	}
 
-	// Apply filters
-	for field, value := range params.Filters {
-		if dbField, ok := config.FilterFields[field]; ok && value != nil {
-			query = query.Where(dbField+" = ?", value)
+	// Apply advanced filter conditions if provided
+	if len(params.FilterConditions) > 0 {
+		var whereClause strings.Builder
+		var args []interface{}
+
+		for i, condition := range params.FilterConditions {
+			// Get the database field name
+			dbField, ok := config.FilterFields[condition.Field]
+			if !ok {
+				continue
+			}
+
+			// Add logical operator (AND/OR) between conditions
+			if i > 0 {
+				if strings.ToUpper(condition.Logic) == "OR" {
+					whereClause.WriteString(" OR ")
+				} else {
+					whereClause.WriteString(" AND ")
+				}
+			}
+
+			// Apply the filter condition
+			conditionSQL, conditionArgs := p.applyFilterCondition(condition, dbField)
+			whereClause.WriteString("(" + conditionSQL + ")")
+			args = append(args, conditionArgs...)
+		}
+
+		if whereClause.Len() > 0 {
+			query = query.Where(whereClause.String(), args...)
+		}
+	} else {
+		// Apply legacy filters (backward compatibility)
+		for field, value := range params.Filters {
+			if dbField, ok := config.FilterFields[field]; ok && value != nil {
+				query = query.Where(dbField+" = ?", value)
+			}
 		}
 	}
 
