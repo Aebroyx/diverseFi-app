@@ -3,6 +3,7 @@
 import { Fragment } from 'react'
 import { Dialog, Transition, DialogTitle } from '@headlessui/react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { PrimaryButton, SecondaryButton } from '@/components/ui/buttons'
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export default function DeleteModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 dark:bg-gray-800">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 dark:bg-card-bg">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:size-10">
                     <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-red-600" />
@@ -65,21 +66,22 @@ export default function DeleteModal({
                     </div>
                   </div>
                 </div>
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                  <button
+                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+                  <PrimaryButton
                     type="button"
                     onClick={onConfirm}
-                    className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-red-500 sm:ml-3 sm:w-auto"
+                    variant="danger"
+                    className="w-full sm:w-auto"
                   >
                     {confirmText}
-                  </button>
-                  <button
+                  </PrimaryButton>
+                  <SecondaryButton
                     type="button"
                     onClick={onClose}
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-gray-300 ring-inset hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-100 dark:ring-gray-600 dark:hover:bg-gray-600 sm:mt-0 sm:w-auto"
+                    className="w-full sm:w-auto"
                   >
                     {cancelText}
-                  </button>
+                  </SecondaryButton>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

@@ -1,11 +1,11 @@
 'use client';
 
-import { ReactNode, useState, useRef } from 'react';
-import { useDebounce } from '@/hooks/useDebounce';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
-import FilterModal from '@/components/modals/FilterModal';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/buttons';
+import AdvancedFilterModal, { FilterCondition, FilterFieldOption } from '@/components/modals/AdvancedFilterModal';
 
 // Define the base column type
 type Column<T> = {
@@ -16,13 +16,8 @@ type Column<T> = {
   sortable?: boolean;
 };
 
-// Define filter field type
-type FilterField = {
-  key: string;
-  label: string;
-  type: 'select' | 'text' | 'date';
-  options?: { value: string; label: string }[];
-};
+// Define filter field type (keeping for backward compatibility)
+type FilterField = FilterFieldOption;
 
 // Define the master table props with generic type
 type MasterTableProps<T> = {
@@ -46,7 +41,7 @@ type MasterTableProps<T> = {
   onSearch: (search: string) => void;
   // Filter props
   filterFields?: FilterField[];
-  onFilterChange: (filters: Record<string, any>) => void;
+  onFilterChange: (filters: FilterCondition[]) => void;
   // Sort props
   sortBy: string;
   sortDesc: boolean;
@@ -81,10 +76,20 @@ export default function MasterTable<T>({
   onSortChange,
 }: MasterTableProps<T>) {
   const [searchInput, setSearchInput] = useState('');
-  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [filters, setFilters] = useState<FilterCondition[]>([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const filterButtonRef = useRef<HTMLDivElement>(null);
-  const debouncedSearch = useDebounce(searchInput, 300);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setIsDarkMode(root.classList.contains('dark'));
+    update();
+
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   // Handle search input change
   const handleSearchChange = (value: string) => {
@@ -93,27 +98,15 @@ export default function MasterTable<T>({
   };
 
   // Handle filter changes from modal
-  const handleFilterApply = (filterItems: { field: string; value: string }[]) => {
-    const newFilters = filterItems.reduce((acc, { field, value }) => ({
-      ...acc,
-      [field]: value
-    }), {});
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+  const handleFilterApply = (filterConditions: FilterCondition[]) => {
+    setFilters(filterConditions);
+    onFilterChange(filterConditions);
   };
 
   // Calculate pagination values
   const totalPages = Math.ceil(total / pageSize);
   const startItem = (page - 1) * pageSize + 1;
   const endItem = Math.min(page * pageSize, total);
-
-  // Convert filterFields to modal fields format
-  const modalFields = filterFields.map(field => ({
-    label: field.label,
-    value: field.key,
-    type: field.type,
-    options: field.options
-  }));
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 mt-10">
@@ -133,13 +126,12 @@ export default function MasterTable<T>({
         </div>
         {onAdd && (
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <button
+            <PrimaryButton
               type="button"
               onClick={onAdd}
-              className="block rounded-md bg-primary px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               {addButtonText}
-            </button>
+            </PrimaryButton>
           </div>
         )}
       </div>
@@ -153,7 +145,7 @@ export default function MasterTable<T>({
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="mt-1 block w-full rounded-md border px-3 py-2 pl-10 shadow-sm focus:outline-primary focus:ring-1 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border px-3 py-2 pl-10 shadow-sm focus:outline-primary focus:ring-1 dark:bg-input-bg dark:text-white dark:border-border-dark"
           />
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 mt-1 h-[calc(100%-0.5rem)]">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -163,38 +155,38 @@ export default function MasterTable<T>({
         {/* Filter Button */}
         {filterFields.length > 0 && (
           <div ref={filterButtonRef} className="sm:w-auto">
-            <button
+            <SecondaryButton
               type="button"
               onClick={() => setIsFilterModalOpen(true)}
-              className="mt-1 inline-flex h-[calc(2.5rem+2px)] items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+              className="mt-1"
             >
               <FunnelIcon className="h-5 w-5" />
               Filter
-              {Object.keys(filters).length > 0 && (
+              {filters.length > 0 && (
                 <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                  {Object.keys(filters).length}
+                  {filters.length}
                 </span>
               )}
-            </button>
+            </SecondaryButton>
           </div>
         )}
       </div>
 
       {/* Filter Modal */}
-      <FilterModal
+      <AdvancedFilterModal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
         onApply={handleFilterApply}
-        fields={modalFields}
-        filterButtonRef={filterButtonRef}
+        fields={filterFields}
+        initialConditions={filters}
       />
 
       {/* Table Section */}
       <div className="mt-8 flow-root">
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-              <thead>
+            <table className="min-w-full divide-y divide-gray-300 dark:divide-border-dark">
+              <thead className="bg-gray-50 dark:bg-transparent">
                 <tr>
                   {columns.map((column) => (
                     <th
@@ -223,10 +215,10 @@ export default function MasterTable<T>({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-border-dark bg-white dark:bg-card-bg">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index} className="even:bg-gray-50 dark:even:bg-gray-700/50">
+                    <tr key={index} className="even:bg-gray-50 dark:even:bg-hover-bg/50">
                       {columns.map((column) => (
                         <td
                           key={column.key.toString()}
@@ -234,7 +226,10 @@ export default function MasterTable<T>({
                             column.className || ''
                           }`}
                         >
-                          <Skeleton />
+                          <Skeleton
+                            baseColor={isDarkMode ? 'transparent' : undefined}
+                            highlightColor={isDarkMode ? 'rgba(255,255,255,0.06)' : undefined}
+                          />
                         </td>
                       ))}
                     </tr>
@@ -252,7 +247,7 @@ export default function MasterTable<T>({
                   data.map((item) => (
                     <tr
                       key={keyExtractor(item)}
-                      className="even:bg-gray-50 dark:even:bg-gray-700/50"
+                      className="even:bg-gray-50 dark:even:bg-hover-bg/50"
                     >
                       {columns.map((column) => (
                         <td
@@ -276,19 +271,19 @@ export default function MasterTable<T>({
       </div>
 
       {/* Pagination Section */}
-      <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6">
+      <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-border-dark bg-white dark:bg-card-bg px-4 py-3 sm:px-6">
         <div className="flex flex-1 justify-between sm:hidden">
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
-            className="relative inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="relative inline-flex items-center rounded-md border border-gray-300 dark:border-border-dark bg-white dark:bg-card-bg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50/5 dark:hover:bg-hover-bg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
           </button>
           <button
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
-            className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 dark:border-border-dark bg-white dark:bg-card-bg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50/5 dark:hover:bg-hover-bg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -310,7 +305,7 @@ export default function MasterTable<T>({
                 id="pageSize"
                 value={pageSize}
                 onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                className="rounded-md border-0 py-1.5 text-gray-900 dark:text-gray-100 dark:bg-gray-800 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-primary sm:text-sm sm:leading-6"
+                className="rounded-md border-0 py-1.5 text-gray-900 dark:text-gray-100 dark:bg-card-bg ring-1 ring-inset ring-gray-300 dark:ring-border-dark focus:ring-2 focus:ring-primary sm:text-sm sm:leading-6"
               >
                 {[5, 10, 20, 50].map((size) => (
                   <option key={size} value={size}>
@@ -323,7 +318,7 @@ export default function MasterTable<T>({
               <button
                 onClick={() => onPageChange(page - 1)}
                 disabled={page === 1}
-                className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-border-dark hover:bg-gray-50/5 dark:hover:bg-hover-bg focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="sr-only">Previous</span>
                 <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
@@ -335,7 +330,7 @@ export default function MasterTable<T>({
                   className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
                     pageNum === page
                       ? 'z-10 bg-primary text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-                      : 'text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0'
+                      : 'text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-gray-300 dark:ring-border-dark hover:bg-gray-50/5 dark:hover:bg-hover-bg focus:z-20 focus:outline-offset-0'
                   }`}
                 >
                   {pageNum}
@@ -344,7 +339,7 @@ export default function MasterTable<T>({
               <button
                 onClick={() => onPageChange(page + 1)}
                 disabled={page === totalPages}
-                className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 dark:text-gray-500 ring-1 ring-inset ring-gray-300 dark:ring-border-dark hover:bg-gray-50/5 dark:hover:bg-hover-bg focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="sr-only">Next</span>
                 <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />

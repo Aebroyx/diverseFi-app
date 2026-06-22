@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/store/features/authSlice';
 import { useQuery } from '@tanstack/react-query';
@@ -9,11 +10,11 @@ async function getCurrentUser(): Promise<User> {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/me`, {
     credentials: 'include',
   });
-  
+
   if (!response.ok) {
     throw new Error('Not authenticated');
   }
-  
+
   return response.json();
 }
 
@@ -29,12 +30,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     gcTime: Infinity,
   });
 
-  // Update Redux store when query state changes
-  if (isError) {
-    dispatch(setCredentials({ user: null }));
-  } else if (data) {
-    dispatch(setCredentials({ user: data }));
-  }
+  // Update Redux store when query state changes - use useEffect to avoid state updates during render
+  useEffect(() => {
+    if (isError) {
+      dispatch(setCredentials({ user: null }));
+    } else if (data) {
+      dispatch(setCredentials({ user: data }));
+    }
+  }, [data, isError, dispatch]);
 
   return <>{children}</>;
 } 

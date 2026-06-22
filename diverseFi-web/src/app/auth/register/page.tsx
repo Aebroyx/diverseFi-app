@@ -3,22 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useDispatch } from 'react-redux';
-import { setCredentials } from '@/store/features/authSlice';
-import type { AppDispatch } from '@/store/store';
 import { userService } from '@/services/userService';
+import { PrimaryButton } from '@/components/ui/buttons';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { validatePassword, PASSWORD_REQUIREMENTS } from '@/lib/utils';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated } = useAuth({ requireAuth: false }); // This page doesn't require auth
-
-  // If user is already authenticated, the hook will handle the redirect
-  if (isAuthenticated) {
-    return null; // or a loading spinner
-  }
+  useAuth({ requireAuth: false }); // This page doesn't require auth, but hook handles redirects
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -28,6 +21,9 @@ export default function RegisterPage() {
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  // If user is already authenticated, the useAuth hook will handle the redirect
+  // No need to return early here as it would violate React's rules of hooks
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,35 +36,26 @@ export default function RegisterPage() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    // Enhanced password validation
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      toast.error(passwordValidation.errors.join('. '));
       setIsLoading(false);
       return;
     }
 
     try {
       // Call the API
-      const response = await userService.register({
+      await userService.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
         name: formData.fullName,
       });
 
-      // Update Redux state with the response
-      dispatch(setCredentials({ 
-        user: {
-          id: response.id,
-          name: response.name,
-          email: response.email,
-          username: response.username,
-          role: response.role,
-        }
-      }));
-      
       // Show success message
-      toast.success('Account created successfully! Redirecting to login...');
-      
+      toast.success('Account created successfully! Please login to continue.');
+
       // Redirect to login page after a short delay
       setTimeout(() => {
         router.push('/auth/login');
@@ -84,7 +71,9 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">DiverseFi</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">
+            DiverseFi
+          </h1>
           <h2 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
             Create your account
           </h2>
@@ -105,7 +94,7 @@ export default function RegisterPage() {
                   autoComplete="name"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="John Doe"
                   disabled={isLoading}
                 />
@@ -125,7 +114,7 @@ export default function RegisterPage() {
                   autoComplete="username"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="johndoe"
                   disabled={isLoading}
                 />
@@ -145,7 +134,7 @@ export default function RegisterPage() {
                   autoComplete="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="john@example.com"
                   disabled={isLoading}
                 />
@@ -165,10 +154,11 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="••••••••"
                   disabled={isLoading}
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{PASSWORD_REQUIREMENTS}</p>
               </div>
             </div>
 
@@ -185,7 +175,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="••••••••"
                   disabled={isLoading}
                 />
@@ -194,13 +184,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <button
+            <PrimaryButton
               type="submit"
+              loading={isLoading}
               disabled={isLoading}
-              className="flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              fullWidth
             >
               {isLoading ? 'Creating account...' : 'Create Account'}
-            </button>
+            </PrimaryButton>
           </div>
         </form>
 

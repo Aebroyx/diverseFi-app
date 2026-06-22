@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/store/features/authSlice';
 import { userService } from '@/services/userService';
+import { PrimaryButton } from '@/components/ui/buttons';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { getErrorMessage } from '@/lib/axios';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,10 +40,10 @@ export default function LoginPage() {
 
     try {
       const response = await userService.login(formData);
-      
+
       // Update Redux state with user data only (tokens are in cookies)
       dispatch(setCredentials({
-        user: response.user
+        user: response.user as any
       }));
       
       // Show success message
@@ -51,7 +53,7 @@ export default function LoginPage() {
       router.push('/');
     } catch (err) {
       // Show error message
-      toast.error(err instanceof Error ? err.message : 'Failed to login');
+      toast.error(getErrorMessage(err as Error, 'Failed to login'));
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +63,9 @@ export default function LoginPage() {
     <div className="h-screen flex items-center justify-center">
       <div className="w-full max-w-md p-8 space-y-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-          <h1 className="text-center text-3xl font-bold tracking-tight text-foreground">DiverseFi</h1>
+          <h1 className="text-center text-3xl font-bold tracking-tight text-primary">
+            DiverseFi
+          </h1>
           <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-foreground">
             Sign in to your account
           </h2>
@@ -83,7 +87,7 @@ export default function LoginPage() {
                   value={formData.username}
                   onChange={handleChange}
                   disabled={isLoading}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="Enter your username"
                 />
               </div>
@@ -110,20 +114,21 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   disabled={isLoading}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-border-dark dark:bg-input-bg dark:text-white"
                   placeholder="Enter your password"
                 />
               </div>
             </div>
 
             <div>
-              <button
+              <PrimaryButton
                 type="submit"
+                loading={isLoading}
                 disabled={isLoading}
-                className="flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                fullWidth
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
-              </button>
+              </PrimaryButton>
             </div>
           </form>
 

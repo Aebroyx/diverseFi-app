@@ -4,22 +4,31 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/diverseFi/diverseFi-api/internal/domain/models"
-	"github.com/diverseFi/diverseFi-api/internal/services"
+	"github.com/Aebroyx/diverseFi-api/internal/common"
+	"github.com/Aebroyx/diverseFi-api/internal/domain/models"
+	"github.com/Aebroyx/diverseFi-api/internal/services"
+	"github.com/Aebroyx/diverseFi-api/internal/validators"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
 type AuthHandler struct {
-	userService *services.UserService
-	validate    *validator.Validate
+	userService  *services.UserService
+	auditService *services.AuditService
+	validate     *validator.Validate
 }
 
-func NewAuthHandler(userService *services.UserService) *AuthHandler {
+func NewAuthHandler(userService *services.UserService, auditService *services.AuditService) *AuthHandler {
+	validate := validator.New()
+	// Register custom validators
+	if err := validators.RegisterCustomValidators(validate); err != nil {
+		panic(err)
+	}
 	return &AuthHandler{
-		userService: userService,
-		validate:    validator.New(),
+		userService:  userService,
+		auditService: auditService,
+		validate:     validate,
 	}
 }
 
@@ -69,17 +78,25 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Login user
-	response, err := h.userService.Login(&req)
+	// Login user with context (IP and UserAgent for tracking)
+	response, err := h.userService.LoginWithContext(&req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
+		// Log failed login attempt
+		go h.logLoginAttempt(c, req.Username, 0, false)
+
 		switch err.Error() {
 		case "invalid username or password":
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+			common.SendError(c, http.StatusBadRequest, "Invalid username or password", common.CodeBadRequest, nil)
+		case "user is not active":
+			common.SendError(c, http.StatusForbidden, "User is not active", common.CodeForbidden, nil)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
 		}
 		return
 	}
+
+	// Log successful login
+	go h.logLoginAttempt(c, response.User.Username, response.User.ID, true)
 
 	// Set access token cookie
 	c.SetCookie(
@@ -110,6 +127,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
+	// Get user info from context (set by auth middleware)
+	var userID uint
+	var username string
+
+	if uid, exists := c.Get("user_id"); exists {
+		if uidUint, ok := uid.(uint); ok {
+			userID = uidUint
+		}
+	}
+
+	if uname, exists := c.Get("username"); exists {
+		if unameStr, ok := uname.(string); ok {
+			username = unameStr
+		}
+	}
+
+	// Log logout action
+	if userID > 0 {
+		go h.logLogoutAction(c, userID, username)
+	}
+
 	// Clear access token cookie by setting it to expire immediately
 	c.SetCookie(
 		"access_token",
@@ -145,4 +183,68 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+// logLoginAttempt logs login attempts (both successful and failed)
+func (h *AuthHandler) logLoginAttempt(c *gin.Context, username string, userID uint, success bool) {
+	if h.auditService == nil {
+		return
+	}
+
+	action := "LOGIN_SUCCESS"
+	if !success {
+		action = "LOGIN_FAILED"
+	}
+
+	correlationID := ""
+	if cid, exists := c.Get("correlation_id"); exists {
+		if cidStr, ok := cid.(string); ok {
+			correlationID = cidStr
+		}
+	}
+
+	var uid *uint
+	if success && userID > 0 {
+		uid = &userID
+	}
+
+	req := &models.CreateAuditLogRequest{
+		UserID:        uid,
+		Username:      username,
+		Action:        action,
+		ResourceType:  "auth",
+		ResourceID:    "",
+		IPAddress:     c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		CorrelationID: correlationID,
+	}
+
+	_ = h.auditService.Log(req)
+}
+
+// logLogoutAction logs logout actions
+func (h *AuthHandler) logLogoutAction(c *gin.Context, userID uint, username string) {
+	if h.auditService == nil {
+		return
+	}
+
+	correlationID := ""
+	if cid, exists := c.Get("correlation_id"); exists {
+		if cidStr, ok := cid.(string); ok {
+			correlationID = cidStr
+		}
+	}
+
+	req := &models.CreateAuditLogRequest{
+		UserID:        &userID,
+		Username:      username,
+		Action:        "LOGOUT",
+		ResourceType:  "auth",
+		ResourceID:    "",
+		IPAddress:     c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		CorrelationID: correlationID,
+	}
+
+	_ = h.auditService.Log(req)
 }

@@ -68,8 +68,8 @@ export default function Table<T>({
       <div className="mt-8 flow-root">
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-              <thead>
+            <table className="min-w-full divide-y divide-gray-300 dark:divide-border-dark">
+              <thead className="bg-gray-50 dark:bg-transparent">
                 <tr>
                   {columns.map((column) => (
                     <th
@@ -84,10 +84,10 @@ export default function Table<T>({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-border-dark bg-white dark:bg-card-bg">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index} className="even:bg-gray-50 dark:even:bg-gray-700/50">
+                    <tr key={index} className="even:bg-gray-50 dark:even:bg-hover-bg/50">
                       {columns.map((column) => (
                         <td
                           key={column.key.toString()}
@@ -113,7 +113,7 @@ export default function Table<T>({
                   data.map((item) => (
                     <tr
                       key={keyExtractor(item)}
-                      className="even:bg-gray-50 dark:even:bg-gray-700/50"
+                      className="even:bg-gray-50 dark:even:bg-hover-bg/50"
                     >
                       {columns.map((column) => (
                         <td

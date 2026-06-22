@@ -1,26 +1,22 @@
 package services
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"log"
 	"time"
 
-	"github.com/diverseFi/diverseFi-api/internal/config"
-	"github.com/diverseFi/diverseFi-api/internal/domain/models"
-	"github.com/diverseFi/diverseFi-api/internal/pagination"
+	"github.com/Aebroyx/diverseFi-api/internal/config"
+	"github.com/Aebroyx/diverseFi-api/internal/domain/models"
+	"github.com/Aebroyx/diverseFi-api/internal/pagination"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/redis/go-redis/v9"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type UserService struct {
-	db          *gorm.DB
-	config      *config.Config
-	redisClient *redis.Client
+	db           *gorm.DB
+	config       *config.Config
+	tokenService *TokenService
 }
 
 // UserQueryParams represents the query parameters for user listing
@@ -28,8 +24,8 @@ type UserQueryParams struct {
 	Page     int    `json:"page" form:"page" binding:"min=1"`
 	PageSize int    `json:"pageSize" form:"pageSize" binding:"min=1,max=100"`
 	Search   string `json:"search" form:"search"`
-	Role     string `json:"role" form:"role"`
-	SortBy   string `json:"sortBy" form:"sortBy" binding:"omitempty,oneof=name email role created_at"`
+	RoleID   uint   `json:"role_id" form:"role_id"`
+	SortBy   string `json:"sortBy" form:"sortBy" binding:"omitempty,oneof=name email role_id created_at"`
 	SortDesc bool   `json:"sortDesc" form:"sortDesc"`
 }
 
@@ -42,24 +38,11 @@ type UserListResponse struct {
 	TotalPages int            `json:"totalPages"`
 }
 
-func NewUserService(db *gorm.DB, config *config.Config, redisClient *redis.Client) *UserService {
+func NewUserService(db *gorm.DB, config *config.Config, tokenService *TokenService) *UserService {
 	return &UserService{
-		db:          db,
-		config:      config,
-		redisClient: redisClient,
-	}
-}
-
-// invalidateUserCache removes the user data from Redis cache
-func (s *UserService) invalidateUserCache(userID uint) {
-	if s.redisClient != nil {
-		userKey := fmt.Sprintf("user:%d", userID)
-		err := s.redisClient.Del(context.Background(), userKey).Err()
-		if err != nil {
-			log.Printf("Failed to invalidate user cache for ID %d: %v", userID, err)
-		} else {
-			log.Printf("Successfully invalidated user cache for ID %d", userID)
-		}
+		db:           db,
+		config:       config,
+		tokenService: tokenService,
 	}
 }
 
@@ -86,18 +69,30 @@ func (s *UserService) Register(req *models.RegisterRequest) (*models.RegisterRes
 		return nil, err
 	}
 
-	// Create new user
+	// Get default role
+	var defaultRole models.Role
+	if err := s.db.Where("is_default = ?", true).First(&defaultRole).Error; err != nil {
+		// Fallback to user role if no default
+		if err := s.db.Where("name = ?", "user").First(&defaultRole).Error; err != nil {
+			return nil, errors.New("default role not found")
+		}
+	}
+
+	// Create new user with RoleID
 	user := models.Users{
 		Username: req.Username,
 		Email:    req.Email,
 		Password: string(hashedPassword),
 		Name:     req.Name,
-		Role:     "user", // Default role
+		RoleID:   defaultRole.ID,
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {
 		return nil, err
 	}
+
+	// Preload role for response
+	s.db.Preload("Role").First(&user, user.ID)
 
 	// Return user data without password
 	return &models.RegisterResponse{
@@ -105,15 +100,31 @@ func (s *UserService) Register(req *models.RegisterRequest) (*models.RegisterRes
 		Username: user.Username,
 		Email:    user.Email,
 		Name:     user.Name,
-		Role:     user.Role,
+		IsActive: user.IsActive,
+		Role: models.RoleResponse{
+			ID:          user.Role.ID,
+			Name:        user.Role.Name,
+			DisplayName: user.Role.DisplayName,
+			Description: user.Role.Description,
+			IsDefault:   user.Role.IsDefault,
+			IsActive:    user.Role.IsActive,
+			CreatedAt:   user.Role.CreatedAt,
+			UpdatedAt:   user.Role.UpdatedAt,
+		},
 	}, nil
 }
 
 // Login authenticates a user and returns tokens
+// Deprecated: Use LoginWithContext instead
 func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, error) {
-	// Find user by username
+	return s.LoginWithContext(req, "", "")
+}
+
+// LoginWithContext authenticates a user and returns tokens with IP and UserAgent tracking
+func (s *UserService) LoginWithContext(req *models.LoginRequest, ipAddress, userAgent string) (*models.LoginResponse, error) {
+	// Find user by username with role preloaded
 	var user models.Users
-	if err := s.db.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	if err := s.db.Preload("Role").Where("username = ?", req.Username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invalid username or password")
 		}
@@ -125,15 +136,31 @@ func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, er
 		return nil, errors.New("invalid username or password")
 	}
 
-	// Generate tokens
+	// Check if user is active
+	if !user.IsActive {
+		return nil, errors.New("user is not active")
+	}
+
+	// Generate access token (JWT)
 	accessToken, accessExp, err := s.generateToken(user, s.config.JWTExpiry)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, _, err := s.generateToken(user, 24*7*time.Hour) // 7 days
-	if err != nil {
-		return nil, err
+	// Create refresh token in database (if tokenService is available)
+	var refreshTokenStr string
+	if s.tokenService != nil {
+		refreshToken, err := s.tokenService.CreateRefreshToken(user.ID, ipAddress, userAgent)
+		if err != nil {
+			return nil, err
+		}
+		refreshTokenStr = refreshToken.Token
+	} else {
+		// Fallback to JWT-based refresh token for backward compatibility
+		refreshTokenStr, _, err = s.generateToken(user, s.config.RefreshTokenExpiry)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create response
@@ -143,11 +170,21 @@ func (s *UserService) Login(req *models.LoginRequest) (*models.LoginResponse, er
 			Username: user.Username,
 			Email:    user.Email,
 			Name:     user.Name,
-			Role:     user.Role,
+			IsActive: user.IsActive,
+			Role: models.RoleResponse{
+				ID:          user.Role.ID,
+				Name:        user.Role.Name,
+				DisplayName: user.Role.DisplayName,
+				Description: user.Role.Description,
+				IsDefault:   user.Role.IsDefault,
+				IsActive:    user.Role.IsActive,
+				CreatedAt:   user.Role.CreatedAt,
+				UpdatedAt:   user.Role.UpdatedAt,
+			},
 		},
 		Token: models.TokenResponse{
 			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
+			RefreshToken: refreshTokenStr,
 			TokenType:    "Bearer",
 			ExpiresIn:    int64(time.Until(accessExp).Seconds()),
 		},
@@ -161,12 +198,13 @@ func (s *UserService) generateToken(user models.Users, expiry time.Duration) (st
 		UserID:   user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		Role:     user.Role,
+		RoleID:   user.RoleID,
+		RoleName: user.Role.Name,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "diverseFi-api",
+			Issuer:    "diversefi-api",
 			Subject:   user.Username,
 		},
 	}
@@ -189,7 +227,7 @@ func (s *UserService) GetAllUsers(params pagination.QueryParams) (*pagination.Pa
 		},
 		SearchFields: []string{"name", "email", "username"},
 		FilterFields: map[string]string{
-			"role":       "role",
+			"role_id":    "role_id",
 			"name":       "name",
 			"email":      "email",
 			"username":   "username",
@@ -209,56 +247,22 @@ func (s *UserService) GetAllUsers(params pagination.QueryParams) (*pagination.Pa
 		SortFields: []string{
 			"name",
 			"email",
-			"role",
+			"role_id",
 			"created_at",
 			"updated_at",
 		},
 		DefaultSort:  "created_at",
 		DefaultOrder: "DESC",
+		Relations:    []string{"Role"},
 	}
 
 	paginator := pagination.NewPaginator(s.db)
 	return paginator.Paginate(params, config)
-
-	// Pagination Example (with join)
-	// GetAllUsers retrieves users with pagination, search, and filters
-	// config := pagination.PaginationConfig{
-	// 	Model: &models.Users{},
-	// 	BaseCondition: map[string]interface{}{
-	// 		"is_deleted": false,
-	// 	},
-	// 	SearchFields: []string{"name", "email", "username"},
-	// 	FilterFields: map[string]string{
-	// 		"role": "role",
-	// 	},
-	// 	DateFields: map[string]pagination.DateField{
-	// 		"created_at": {
-	// 			Start: "created_at",
-	// 			End:   "created_at",
-	// 		},
-	// 		"updated_at": {
-	// 			Start: "updated_at",
-	// 			End:   "updated_at",
-	// 		},
-	// 	},
-	// 	SortFields: []string{
-	// 		"name",
-	// 		"email",
-	// 		"role",
-	// 		"created_at",
-	// 		"updated_at",
-	// 	},
-	// 	DefaultSort:  "created_at",
-	// 	DefaultOrder: "DESC",
-	// }
-
-	// paginator := pagination.NewPaginator(s.db)
-	// return paginator.Paginate(params, config)
 }
 
 func (s *UserService) GetUserById(id string) (models.Users, error) {
 	var user models.Users
-	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
+	if err := s.db.Preload("Role").Where("id = ?", id).First(&user).Error; err != nil {
 		return models.Users{}, err
 	}
 	return user, nil
@@ -281,10 +285,21 @@ func (s *UserService) CreateUser(req *models.CreateUserRequest) (*models.CreateU
 		return nil, err
 	}
 
+	// Validate role exists
+	var role models.Role
+	if err := s.db.First(&role, req.RoleID).Error; err != nil {
+		return nil, errors.New("invalid role")
+	}
+
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate IsActive is provided
+	if req.IsActive == nil {
+		return nil, errors.New("is_active is required")
 	}
 
 	// Create new user
@@ -293,35 +308,63 @@ func (s *UserService) CreateUser(req *models.CreateUserRequest) (*models.CreateU
 		Email:    req.Email,
 		Password: string(hashedPassword),
 		Name:     req.Name,
-		Role:     req.Role,
+		RoleID:   req.RoleID,
+		IsActive: *req.IsActive,
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {
 		return nil, err
 	}
 
+	// Preload role for response
+	s.db.Preload("Role").First(&user, user.ID)
+
 	// Return user data without password
 	return &models.CreateUserResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Name:      user.Name,
-		Role:      user.Role,
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Name:     user.Name,
+		IsActive: user.IsActive,
+		Role: models.RoleResponse{
+			ID:          user.Role.ID,
+			Name:        user.Role.Name,
+			DisplayName: user.Role.DisplayName,
+			Description: user.Role.Description,
+			IsDefault:   user.Role.IsDefault,
+			IsActive:    user.Role.IsActive,
+			CreatedAt:   user.Role.CreatedAt,
+			UpdatedAt:   user.Role.UpdatedAt,
+		},
 		CreatedAt: user.CreatedAt,
 	}, nil
 }
 
 func (s *UserService) UpdateUser(id string, req *models.UpdateUserRequest) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
+	if err := s.db.Preload("Role").Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
+	}
+
+	// Validate role exists if being changed
+	if req.RoleID != user.RoleID {
+		var role models.Role
+		if err := s.db.First(&role, req.RoleID).Error; err != nil {
+			return nil, errors.New("invalid role")
+		}
+	}
+
+	// Validate IsActive is provided
+	if req.IsActive == nil {
+		return nil, errors.New("is_active is required")
 	}
 
 	// Update user fields
 	user.Username = req.Username
 	user.Email = req.Email
 	user.Name = req.Name
-	user.Role = req.Role
+	user.RoleID = req.RoleID
+	user.IsActive = *req.IsActive
 
 	// Only update password if provided
 	if req.Password != "" {
@@ -332,45 +375,87 @@ func (s *UserService) UpdateUser(id string, req *models.UpdateUserRequest) (*mod
 		user.Password = string(hashedPassword)
 	}
 
-	// Update user
-	if err := s.db.Model(&user).Updates(&user).Error; err != nil {
+	// Update user - use Select to explicitly specify fields to update (including is_active even when false)
+	fieldsToUpdate := []string{"username", "email", "name", "role_id", "is_active"}
+	if req.Password != "" {
+		fieldsToUpdate = append(fieldsToUpdate, "password")
+	}
+
+	if err := s.db.Model(&user).Select(fieldsToUpdate).Updates(&user).Error; err != nil {
 		return nil, err
 	}
 
-	// Invalidate user cache after update
-	s.invalidateUserCache(user.ID)
+	// Reload with role
+	s.db.Preload("Role").First(&user, user.ID)
 
 	return &user, nil
 }
 
 func (s *UserService) DeleteUser(id string) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		// First, get the user to verify it exists
+		if err := tx.Where("id = ?", id).First(&user).Error; err != nil {
+			return err
+		}
+
+		// Prevent deletion of root user only
+		if user.Username == "root" || user.Email == "root@localhost" {
+			return errors.New("cannot delete root user")
+		}
+
+		// Mark as deleted (in addition to Gorm's soft delete)
+		if err := tx.Model(&models.Users{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"is_deleted": true,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Soft delete the user (sets deleted_at)
+		if err := tx.Where("id = ?", id).Delete(&user).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-
-	if err := s.db.Delete(&user).Error; err != nil {
-		return nil, err
-	}
-
-	// Invalidate user cache after deletion
-	s.invalidateUserCache(user.ID)
 
 	return &user, nil
 }
 
-func (s *UserService) SoftDeleteUser(id string) (*models.Users, error) {
+func (s *UserService) ResetUserPassword(id string, req *models.ResetUserPasswordRequest) (*models.Users, error) {
 	var user models.Users
 	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
 	}
 
-	if err := s.db.Model(&user).Update("is_deleted", true).Error; err != nil {
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword)); err != nil {
+		return nil, errors.New("invalid current password")
+	}
+
+	// Verify new password and confirm password
+	if req.NewPassword != req.ConfirmPassword {
+		return nil, errors.New("new password and confirm password do not match")
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
 		return nil, err
 	}
 
-	// Invalidate user cache after soft deletion
-	s.invalidateUserCache(user.ID)
+	// Update user password
+	user.Password = string(hashedPassword)
+
+	// Update user
+	if err := s.db.Model(&user).Updates(&user).Error; err != nil {
+		return nil, err
+	}
+
+	// Reload with role
+	s.db.Preload("Role").First(&user, user.ID)
 
 	return &user, nil
 }

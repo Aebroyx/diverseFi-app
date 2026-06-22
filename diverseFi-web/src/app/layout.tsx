@@ -3,7 +3,6 @@ import localFont from 'next/font/local';
 import './globals.css';
 import Providers from '../components/Providers';
 import { ThemeProvider } from '../components/ThemeProvider';
-import ThemeToggle from '../components/ThemeToggle';
 import { Toaster } from 'react-hot-toast';
 import QueryProvider from "@/providers/QueryProvider";
 
@@ -21,9 +20,19 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: 'DiverseFi',
-  description: 'DiverseFi Dashboard Application',
+  description: 'Financial dashboard application',
+  manifest: '/site.webmanifest',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-96x96.png', type: 'image/png', sizes: '96x96' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+  },
+  appleWebApp: {
+    title: 'DiverseFi',
   },
 };
 
@@ -33,7 +42,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          // Apply theme before paint to avoid "flash to light".
+          dangerouslySetInnerHTML={{
+            __html: `
+(() => {
+  try {
+    const stored = localStorage.getItem('theme');
+    const theme = stored === 'dark' || stored === 'light'
+      ? stored
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  } catch (_) {}
+})();
+            `.trim(),
+          }}
+        />
+      </head>
       <body>
         <QueryProvider>
           <Providers>

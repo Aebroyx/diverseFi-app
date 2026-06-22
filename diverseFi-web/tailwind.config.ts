@@ -22,6 +22,11 @@ const config: Config = {
           light: "var(--secondary-light)",
           dark: "var(--secondary-dark)",
         },
+        // Discord-like dark mode colors
+        'card-bg': "var(--card-bg)",
+        'input-bg': "var(--input-bg)",
+        'hover-bg': "var(--hover-bg)",
+        'border-dark': "var(--border)",
       },
     },
   },

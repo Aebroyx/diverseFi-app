@@ -16,7 +16,7 @@
 
 /* Dark mode (when .dark class is present) */
 .dark {
-  --background: #23272f;
+  --background: #2b2d31;
   --foreground: #ededed;
   --primary: #8A73F9;
   --secondary: #E2F973;
@@ -24,6 +24,12 @@
   --secondary-light: #F0FFB3;
   --primary-dark: #5F4AD3;
   --secondary-dark: #B0D94D;
+
+  /* Discord-like monotone surface colors */
+  --card-bg: #313338;
+  --input-bg: #1e1f22;
+  --hover-bg: #383a40;
+  --border: #3f4147;
 }
 
 /* Add smooth transition for theme switching */
@@ -42,4 +48,11 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* react-loading-skeleton: make dark-mode skeletons subtle (not white) */
+.dark .react-loading-skeleton {
+  /* v3+ uses CSS variables for theme */
+  --base-color: rgba(255, 255, 255, 0.06);
+  --highlight-color: rgba(255, 255, 255, 0.10);
 }
