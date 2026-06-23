@@ -1,5 +1,5 @@
 import axiosInstance, { handleApiError } from '@/lib/axios';
-import { FilterCondition } from '@/components/modals/AdvancedFilterModal';
+import { FilterCondition } from '@/types/filter';
 
 // Types
 export interface RoleResponse {

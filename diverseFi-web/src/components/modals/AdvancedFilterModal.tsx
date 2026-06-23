@@ -5,40 +5,14 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, TrashIcon, Bars2Icon, PlusIcon } from '@heroicons/react/24/outline';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/buttons';
 import Select from '@/components/ui/Select';
+import type {
+  FilterCondition,
+  FilterFieldOption,
+  FilterLogic,
+  FilterOperator,
+} from '@/types/filter';
 
-// Operator types for different field types
-export type FilterOperator =
-  | 'equals'
-  | 'notEquals'
-  | 'contains'
-  | 'notContains'
-  | 'startsWith'
-  | 'endsWith'
-  | 'greaterThan'
-  | 'lessThan'
-  | 'greaterThanOrEqual'
-  | 'lessThanOrEqual'
-  | 'is'
-  | 'isNot'
-  | 'isEmpty'
-  | 'isNotEmpty';
-
-export type FilterLogic = 'and' | 'or';
-
-export interface FilterCondition {
-  id: string;
-  field: string;
-  operator: FilterOperator;
-  value: string;
-  logic: FilterLogic;
-}
-
-export interface FilterFieldOption {
-  key: string;
-  label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'boolean';
-  options?: { value: string; label: string }[];
-}
+export type { FilterCondition, FilterFieldOption, FilterLogic, FilterOperator };
 
 interface AdvancedFilterModalProps {
   isOpen: boolean;

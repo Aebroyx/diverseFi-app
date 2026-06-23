@@ -1,6 +1,6 @@
 import { User } from '@/store/features/authSlice';
 import axiosInstance, { handleApiError } from '@/lib/axios';
-import { FilterCondition } from '@/components/modals/AdvancedFilterModal';
+import { FilterCondition } from '@/types/filter';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
