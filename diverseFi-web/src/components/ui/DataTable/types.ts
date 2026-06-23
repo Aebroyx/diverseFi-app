@@ -1,6 +1,6 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { ReactNode } from 'react';
-import { FilterCondition, FilterFieldOption } from '@/components/modals/AdvancedFilterModal';
+import { FilterCondition, FilterFieldOption } from '@/types/filter';
 
 // Filter field type for defining filterable columns
 export type FilterField = FilterFieldOption;

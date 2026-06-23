@@ -85,9 +85,13 @@ axiosInstance.interceptors.response.use(
           const isAuthPage = currentPath.startsWith('/auth/');
 
           if (!isAuthPage) {
-            // Use replace to prevent back button issues
-            window.location.replace('/auth/login');
+          try {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+          } catch {
+            // Best-effort cookie clear before redirect.
           }
+          window.location.replace('/auth/login');
+        }
         }
 
         return Promise.reject(refreshError);

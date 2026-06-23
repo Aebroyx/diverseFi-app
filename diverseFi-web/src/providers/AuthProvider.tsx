@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/store/features/authSlice';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +21,8 @@ async function getCurrentUser(): Promise<User> {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
+  const pathname = usePathname();
+  const isAuthRoute = pathname.startsWith('/auth/');
 
   const { data, isError } = useQuery({
     queryKey: ['me'],
@@ -28,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     gcTime: Infinity,
+    enabled: !isAuthRoute,
   });
 
   // Update Redux store when query state changes - use useEffect to avoid state updates during render

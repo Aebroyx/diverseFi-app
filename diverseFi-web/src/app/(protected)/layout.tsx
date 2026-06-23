@@ -2,6 +2,7 @@
 
 import { Navigation } from '@/components/Navigation';
 import { RequireMenuRead } from '@/components/auth/RequireMenuRead';
+import { PermissionProvider } from '@/contexts/PermissionContext';
 
 export default function ProtectedLayout({
   children,
@@ -9,10 +10,12 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Navigation>
-      <RequireMenuRead>
-        {children}
-      </RequireMenuRead>
-    </Navigation>
+    <PermissionProvider>
+      <Navigation>
+        <RequireMenuRead>
+          {children}
+        </RequireMenuRead>
+      </Navigation>
+    </PermissionProvider>
   );
 }
