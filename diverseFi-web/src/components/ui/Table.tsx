@@ -1,8 +1,17 @@
 import { ReactNode } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
+import { Button } from '@/components/ui/shadcn/button';
+import {
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/shadcn/table';
+import { cn } from '@/lib/utils';
 
-// Define the base column type
 export type Column<T> = {
   header: ReactNode;
   key: keyof T | string;
@@ -10,7 +19,6 @@ export type Column<T> = {
   className?: string;
 };
 
-// Define the table props with generic type
 export type TableProps<T> = {
   title?: string;
   description?: string;
@@ -35,107 +43,82 @@ export default function Table<T>({
   emptyState,
 }: TableProps<T>) {
   return (
-    <div className="px-4 sm:px-6 lg:px-8 mt-10">
+    <div className="mt-10 px-4 sm:px-6 lg:px-8">
       {(title || description || onAdd) && (
         <div className="sm:flex sm:items-center">
           {(title || description) && (
             <div className="sm:flex-auto">
               {title && (
-                <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                  {title}
-                </h1>
+                <h1 className="text-base font-semibold text-foreground">{title}</h1>
               )}
               {description && (
-                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                  {description}
-                </p>
+                <p className="mt-2 text-sm text-muted-foreground">{description}</p>
               )}
             </div>
           )}
           {onAdd && (
-            <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-              <button
-                type="button"
-                onClick={onAdd}
-                className="block rounded-md bg-primary px-3 py-2 text-center text-sm font-semibold text-white shadow-xs hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                {addButtonText}
-              </button>
+            <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+              <Button onClick={onAdd}>{addButtonText}</Button>
             </div>
           )}
         </div>
       )}
       <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <table className="min-w-full divide-y divide-gray-300 dark:divide-border-dark">
-              <thead className="bg-gray-50 dark:bg-transparent">
-                <tr>
+        <ShadcnTable>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              {columns.map((column) => (
+                <TableHead
+                  key={column.key.toString()}
+                  className={cn('pl-4 sm:pl-3', column.className)}
+                >
+                  {column.header}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={index}>
                   {columns.map((column) => (
-                    <th
+                    <TableCell
                       key={column.key.toString()}
-                      scope="col"
-                      className={`py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 sm:pl-3 ${
-                        column.className || ''
-                      }`}
+                      className={cn('pl-4 sm:pl-3', column.className)}
                     >
-                      {column.header}
-                    </th>
+                      <Skeleton />
+                    </TableCell>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-border-dark bg-white dark:bg-card-bg">
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index} className="even:bg-gray-50 dark:even:bg-hover-bg/50">
-                      {columns.map((column) => (
-                        <td
-                          key={column.key.toString()}
-                          className={`py-4 pr-3 pl-4 text-sm whitespace-nowrap sm:pl-3 ${
-                            column.className || ''
-                          }`}
-                        >
-                          <Skeleton />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : data.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="py-4 text-center text-sm text-gray-500 dark:text-gray-400"
+                </TableRow>
+              ))
+            ) : data.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="py-4 text-center text-sm text-muted-foreground"
+                >
+                  {emptyState || 'No data available'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((item) => (
+                <TableRow key={keyExtractor(item)}>
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column.key.toString()}
+                      className={cn('pl-4 sm:pl-3', column.className)}
                     >
-                      {emptyState || 'No data available'}
-                    </td>
-                  </tr>
-                ) : (
-                  data.map((item) => (
-                    <tr
-                      key={keyExtractor(item)}
-                      className="even:bg-gray-50 dark:even:bg-hover-bg/50"
-                    >
-                      {columns.map((column) => (
-                        <td
-                          key={column.key.toString()}
-                          className={`py-4 pr-3 pl-4 text-sm whitespace-nowrap sm:pl-3 ${
-                            column.className || ''
-                          }`}
-                        >
-                          {column.render
-                            ? column.render(item)
-                            : (item[column.key as keyof T] as ReactNode)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      {column.render
+                        ? column.render(item)
+                        : (item[column.key as keyof T] as ReactNode)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </ShadcnTable>
       </div>
     </div>
   );
 }
-  

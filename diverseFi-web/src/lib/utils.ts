@@ -1,3 +1,10 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 /**
  * Password validation utility
  * Requirements:
@@ -37,16 +44,11 @@ export const validatePassword = (password: string): PasswordValidationResult => 
   };
 };
 
-/**
- * Get a user-friendly password validation error message
- */
 export const getPasswordValidationMessage = (password: string): string | null => {
   const result = validatePassword(password);
   if (result.isValid) return null;
   return result.errors.join('. ');
 };
 
-/**
- * Password requirements helper text
- */
-export const PASSWORD_REQUIREMENTS = 'Minimum 8 characters with at least 1 capital letter, 1 number, and 1 special character';
+export const PASSWORD_REQUIREMENTS =
+  'Minimum 8 characters with at least 1 capital letter, 1 number, and 1 special character';

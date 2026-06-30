@@ -4,7 +4,8 @@ import './globals.css';
 import Providers from '../components/Providers';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { Toaster } from 'react-hot-toast';
-import QueryProvider from "@/providers/QueryProvider";
+import QueryProvider from '@/providers/QueryProvider';
+import { cn } from '@/lib/utils';
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -44,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={cn(geistSans.variable, geistMono.variable)}
       suppressHydrationWarning
     >
       <head>
@@ -57,7 +58,7 @@ export default function RootLayout({
     const stored = localStorage.getItem('theme');
     const theme = stored === 'dark' || stored === 'light'
       ? stored
-      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      : 'dark';
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   } catch (_) {}

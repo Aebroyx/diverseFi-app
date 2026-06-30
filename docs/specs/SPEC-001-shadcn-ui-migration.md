@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | PLAN APPROVED — awaiting go-ahead to execute Phase 0 |
+| **Status** | IN PROGRESS |
 | **Owner** | AI engineer |
 | **Created** | 2026-06-22 |
 | **Scope** | `diverseFI-web/` only (no backend/API changes) |
@@ -32,11 +32,11 @@ template's brand identity, defaulting to dark mode.
 
 | # | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| R1 | Initialize shadcn/ui via CLI | `components.json` exists; `cn()` at `@/lib/utils`; deps installed (`tailwind-merge`, `clsx`, `class-variance-authority`, `tailwindcss-animate`, `lucide-react`, Radix); `npm run build` passes | TODO |
-| R2 | Default Dark Mode | App renders dark by default with no flash of light; toggle still works and persists | TODO |
-| R3 | Slate base theme | shadcn Slate HSL tokens applied in `globals.css` for `:root` + `.dark` | TODO |
-| R4 | Preserve brand primary | `--primary` overridden to `#8A73F9` (`252 92% 71%`) in both themes; `--primary-foreground` readable | TODO |
-| R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Select (adapter), Badges, Card/FormCard, modals, Table use shadcn; pages render & function unchanged | TODO |
+| R1 | Initialize shadcn/ui via CLI | `components.json` exists; `cn()` at `@/lib/utils`; deps installed (`tailwind-merge`, `clsx`, `class-variance-authority`, `tailwindcss-animate`, `lucide-react`, Radix); `npm run build` passes | DONE |
+| R2 | Default Dark Mode | App renders dark by default with no flash of light; toggle still works and persists | DONE |
+| R3 | Slate base theme | shadcn Slate HSL tokens applied in `globals.css` for `:root` + `.dark` | DONE |
+| R4 | Preserve brand primary | `--primary` overridden to `#8A73F9` (`252 92% 71%`) in both themes; `--primary-foreground` readable | DONE |
+| R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Select (adapter), Badges, Card/FormCard, modals, Table use shadcn; pages render & function unchanged | IN PROGRESS |
 | R6 | RBAC-gated UI intact | Auth flows + admin dashboards work after migration; menus/actions still show/hide per role (RBAC gating unchanged) | TODO |
 
 ---
@@ -160,3 +160,11 @@ sites don't change (adapter pattern).
   `docs/specs/SPEC-001-shadcn-ui-migration.md`; system spec/design docs added.
 - 2026-06-22: Added R6 — verify RBAC-gated UI (auth flows, admin dashboards,
   per-role menu/action visibility) remains intact after migration.
+- 2026-06-30: Phase 0–5 executed. shadcn v4 CLI init + components in
+  `src/components/ui/shadcn/` (avoids macOS case collisions). Upgraded to
+  Tailwind v4 (`@tailwindcss/postcss`, `tw-animate-css`, `shadcn/tailwind.css`).
+  Theme: Slate HSL + brand primary `#8A73F9`; default dark via `next-themes`.
+  Adapters migrated: buttons, Input/Textarea/Toggle, Select, badges, FormCard,
+  Table, DeleteModal, ProfileModal, SettingsModal, FilterModal, TopNav dropdown.
+  Remaining Headless UI: Sidebar mobile sheet, CommandPalette shell, import
+  modals, AdvancedFilterModal (Phase 6 checkpoint).

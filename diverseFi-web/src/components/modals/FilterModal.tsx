@@ -1,7 +1,24 @@
-import { Fragment, useState } from "react";
-import { Popover, Transition } from "@headlessui/react";
-import { FunnelIcon } from "@heroicons/react/24/outline";
-import { PrimaryButton, SecondaryButton } from "@/components/ui/buttons";
+'use client';
+
+import { useState } from 'react';
+import { Filter, Plus, X } from 'lucide-react';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/buttons';
+import { Button } from '@/components/ui/shadcn/button';
+import { Input as ShadcnInput } from '@/components/ui/shadcn/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/shadcn/popover';
+import {
+  Select as ShadcnSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/shadcn/select';
+import { Badge } from '@/components/ui/shadcn/badge';
+import { cn } from '@/lib/utils';
 
 interface FilterItem {
   field: string;
@@ -22,16 +39,17 @@ interface FilterModalProps {
 }
 
 const FilterModal: React.FC<FilterModalProps> = ({ onApply, fields, buttonClassName }) => {
+  const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState<FilterItem[]>([]);
-  const [selectedField, setSelectedField] = useState("");
-  const [filterValue, setFilterValue] = useState("");
+  const [selectedField, setSelectedField] = useState('');
+  const [filterValue, setFilterValue] = useState('');
 
   const handleAddFilter = () => {
     if (!selectedField || !filterValue) return;
     const newFilters = [...filters, { field: selectedField, value: filterValue }];
     setFilters(newFilters);
-    setFilterValue("");
-    setSelectedField("");
+    setFilterValue('');
+    setSelectedField('');
     onApply(newFilters);
   };
 
@@ -43,148 +61,134 @@ const FilterModal: React.FC<FilterModalProps> = ({ onApply, fields, buttonClassN
 
   const handleReset = () => {
     setFilters([]);
-    setFilterValue("");
-    setSelectedField("");
+    setFilterValue('');
+    setSelectedField('');
     onApply([]);
   };
 
-  const selectedFieldType = fields.find(f => f.value === selectedField)?.type || 'text';
+  const selectedFieldType = fields.find((f) => f.value === selectedField)?.type || 'text';
+  const availableFields = fields.filter((field) => !filters.some((f) => f.field === field.value));
 
   return (
-    <Popover className="relative">
-      {({ open }) => (
-        <>
-          <Popover.Button
-            className={`inline-flex items-center gap-2 rounded-md border border-gray-300 dark:border-border-dark bg-white dark:bg-card-bg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-hover-bg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${buttonClassName || ''}`}
-          >
-            <FunnelIcon className="h-5 w-5" />
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button variant="outline" className={cn('gap-2', buttonClassName)} />
+        }
+      >
+        <Filter className="h-4 w-4" />
+        Filter
+        {filters.length > 0 && (
+          <Badge variant="default" className="ml-1 rounded-full px-2 py-0">
+            {filters.length}
+          </Badge>
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[350px] p-4 md:w-[500px] lg:w-[540px]">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center text-lg font-medium">
+            <Filter className="mr-2 h-5 w-5" />
             Filter
-            {filters.length > 0 && (
-              <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                {filters.length}
-              </span>
-            )}
-          </Popover.Button>
+          </div>
+          <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-          <Transition
-            as={Fragment}
-            enter="transition ease-out duration-200"
-            enterFrom="opacity-0 translate-y-1"
-            enterTo="opacity-100 translate-y-0"
-            leave="transition ease-in duration-150"
-            leaveFrom="opacity-100 translate-y-0"
-            leaveTo="opacity-0 translate-y-1"
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <ShadcnSelect
+            value={selectedField || undefined}
+            onValueChange={(value) => setSelectedField(value ?? '')}
           >
-            <Popover.Panel className="absolute left-0 z-50 mt-2 w-[350px] md:w-[500px] lg:w-[540px] origin-top-left rounded-md bg-white dark:bg-card-bg p-4 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center font-medium text-lg text-gray-900 dark:text-gray-100">
-                  <FunnelIcon className="h-5 w-5 mr-2" />
-                  Filter
-                </div>
-                <Popover.Button className="text-gray-500 hover:text-red-500 text-xl">
-                  ✕
-                </Popover.Button>
+            <SelectTrigger className="w-full sm:w-1/2">
+              <SelectValue placeholder="Select Field" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableFields.map((field) => (
+                <SelectItem key={field.value} value={field.value}>
+                  {field.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </ShadcnSelect>
+
+          {selectedFieldType === 'select' ? (
+            <ShadcnSelect
+              value={filterValue || undefined}
+              onValueChange={(value) => setFilterValue(value ?? '')}
+            >
+              <SelectTrigger className="w-full sm:w-2/3">
+                <SelectValue placeholder="Select Value" />
+              </SelectTrigger>
+              <SelectContent>
+                {fields
+                  .find((f) => f.value === selectedField)
+                  ?.options?.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </ShadcnSelect>
+          ) : selectedFieldType === 'date' ? (
+            <ShadcnInput
+              type="date"
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+              className="w-full sm:w-2/3"
+            />
+          ) : (
+            <ShadcnInput
+              type="text"
+              placeholder="Filter Value"
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+              className="w-full sm:w-2/3"
+            />
+          )}
+
+          <PrimaryButton onClick={handleAddFilter} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Add
+          </PrimaryButton>
+        </div>
+
+        <ul className="my-6 h-36 space-y-2 overflow-y-auto">
+          {filters.map((f, idx) => (
+            <li
+              key={idx}
+              className="flex items-center justify-between border-b border-border pb-1"
+            >
+              <div className="text-foreground">
+                <span className="font-medium">
+                  {fields.find((field) => field.value === f.field)?.label || f.field}
+                </span>{' '}
+                - <span className="italic text-primary">{f.value}</span>
               </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleRemoveFilter(idx)}
+                className="text-destructive hover:text-destructive"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2 mb-4">
-                <select
-                  value={selectedField}
-                  onChange={(e) => setSelectedField(e.target.value)}
-                  className="border dark:border-border-dark px-2 py-1 rounded w-full sm:w-1/2 bg-white dark:bg-input-bg text-gray-900 dark:text-gray-100"
-                >
-                  <option value="" disabled>
-                    Select Field
-                  </option>
-                  {fields
-                    .filter((field) => !filters.some((f) => f.field === field.value))
-                    .map((field) => (
-                      <option key={field.value} value={field.value}>
-                        {field.label}
-                      </option>
-                    ))}
-                </select>
+          {filters.length === 0 && (
+            <li className="text-center italic text-muted-foreground">No filters applied.</li>
+          )}
+        </ul>
 
-                {selectedFieldType === 'select' ? (
-                  <select
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                    className="border dark:border-border-dark px-2 py-1 rounded w-full sm:w-2/3 bg-white dark:bg-input-bg text-gray-900 dark:text-gray-100"
-                  >
-                    <option value="" disabled>
-                      Select Value
-                    </option>
-                    {fields.find(f => f.value === selectedField)?.options?.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : selectedFieldType === 'date' ? (
-                  <input
-                    type="date"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                    className="border dark:border-border-dark px-2 py-1 rounded w-full sm:w-2/3 bg-white dark:bg-input-bg text-gray-900 dark:text-gray-100"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="Filter Value"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                    className="border dark:border-border-dark px-2 py-1 rounded w-full sm:w-2/3 bg-white dark:bg-input-bg text-gray-900 dark:text-gray-100"
-                  />
-                )}
-
-                <PrimaryButton
-                  onClick={handleAddFilter}
-                  className="w-full sm:w-auto"
-                >
-                  <span>+</span>
-                  <span>Add</span>
-                </PrimaryButton>
-              </div>
-
-              <ul className="my-6 space-y-2 h-36 overflow-y-auto">
-                {filters.map((f, idx) => (
-                  <li key={idx} className="flex justify-between items-center border-b dark:border-border-dark pb-1">
-                    <div className="text-gray-900 dark:text-gray-100">
-                      <span className="font-medium">
-                        {fields.find((field) => field.value === f.field)?.label || f.field}
-                      </span>{" "}
-                      -{" "}
-                      <span className="italic text-primary">{f.value}</span>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveFilter(idx)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-
-                {filters.length === 0 && (
-                  <li className="text-gray-500 dark:text-gray-400 italic text-center">
-                    No filters applied.
-                  </li>
-                )}
-              </ul>
-
-              {filters.length > 0 && (
-                <div className="text-center">
-                  <SecondaryButton
-                    onClick={handleReset}
-                    variant="danger"
-                  >
-                    ✕ Clear All
-                  </SecondaryButton>
-                </div>
-              )}
-            </Popover.Panel>
-          </Transition>
-        </>
-      )}
+        {filters.length > 0 && (
+          <div className="text-center">
+            <SecondaryButton onClick={handleReset} variant="danger">
+              Clear All
+            </SecondaryButton>
+          </div>
+        )}
+      </PopoverContent>
     </Popover>
   );
 };
