@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | IN PROGRESS — migration complete; R6 RBAC smoke test + cleanup pending |
+| **Status** | DONE |
 | **Owner** | AI engineer |
 | **Created** | 2026-06-22 |
 | **Scope** | `diverseFI-web/` only (no backend/API changes) |
@@ -40,7 +40,7 @@ template's brand identity, defaulting to dark mode.
 | R3 | Slate base theme | shadcn Slate HSL tokens applied in `globals.css` for `:root` + `.dark` | DONE |
 | R4 | Preserve brand primary | `--primary` overridden to `#8A73F9` (`252 92% 71%`) in both themes; `--primary-foreground` readable | DONE |
 | R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Badges, Card/FormCard, modals, Table use shadcn; **`Select.tsx` uses react-select** (adapter API unchanged); pages render & function unchanged | DONE |
-| R6 | RBAC-gated UI intact | Auth flows + admin dashboards work after migration; menus/actions still show/hide per role (RBAC gating unchanged) | TODO |
+| R6 | RBAC-gated UI intact | Auth flows + admin dashboards work after migration; menus/actions still show/hide per role (RBAC gating unchanged) | DONE |
 
 ---
 
@@ -182,3 +182,8 @@ sites don't change (adapter pattern).
 - 2026-06-30: **Select reverted to `react-select`** (decision D5). shadcn/Base UI
   Select rejected for dropdown UX and Input styling mismatch. `Select.tsx` adapter
   API unchanged; styles use semantic CSS variables; menu via portal. Docs updated.
+- 2026-06-30: **R6 verified** — manual RBAC smoke test passed (auth, sidebar menus,
+  per-role action gating, CRUD flows). Fixed create-user permission overrides not
+  saving (`userService.createUser` now unwraps `response.data.data`). Spec **DONE**.
+  Deferred follow-up (non-blocking): `DataTable`/`Sidebar` legacy `gray-*` classes,
+  Heroicons → Lucide, remove unused legacy CSS alias vars.

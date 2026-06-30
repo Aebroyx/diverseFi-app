@@ -22,7 +22,7 @@ so anyone (human or agent) can pick it up with full context.
 
 | ID | Spec | Scope | Status |
 |---|---|---|---|
-| SPEC-001 | [shadcn/ui Migration (Dark Mode + Slate + Brand Primary)](./SPEC-001-shadcn-ui-migration.md) | `diverseFI-web/` | IN PROGRESS — R6 smoke test pending |
+| SPEC-001 | [shadcn/ui Migration (Dark Mode + Slate + Brand Primary)](./SPEC-001-shadcn-ui-migration.md) | `diverseFI-web/` | DONE |
 | SPEC-002 | [Core Data Schema (Per-User Ledger + Shared Market Feed)](./SPEC-002-data-schema.md) | `diverseFI-api/` | DRAFT |
 
 ## Naming convention

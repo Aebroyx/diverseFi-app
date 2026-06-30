@@ -24,8 +24,8 @@ Monorepo, two apps:
 - **`diverseFI-api/`** — Go 1.24 / Gin REST API + PostgreSQL (GORM). Auth, RBAC,
   audit, plus the Asset Ledger and shared Market Feed (Yahoo Finance, Alpha
   Vantage, CoinGecko, Polymarket CLOB).
-- **`diverseFI-web/`** — Next.js 16 (App Router) / React 19 / Tailwind dashboard.
-  Redux + React Query + axios. Migrating to shadcn/ui (dark-mode default).
+- **`diverseFI-web/`** — Next.js 16 (App Router) / React 19 / Tailwind v4 dashboard.
+  Redux + React Query + axios. **shadcn/ui** (dark-mode default) + `react-select` for Select.
 
 > ⚠️ The current codebase is a SaaS **boilerplate baseline**. We **build the
 > investment-aggregator domain on top of it and preserve its enterprise features**
