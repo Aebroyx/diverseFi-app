@@ -161,7 +161,10 @@ Always keep `--ring` = brand purple so focus states reinforce the brand.
 - **FormCard:** page forms use `FormCard` + `FormSection`/`FormRow`; footer actions
   via `FormActions` — **right-aligned** (`Cancel` left of primary within the group).
 - **Toggle → `Switch`**; checked uses `bg-primary`.
-- **Select:** shadcn `Select` behind our existing props (adapter); themed to match inputs.
+- **Select:** **`react-select`** behind our existing `Select.tsx` props adapter (not
+  shadcn `Select` — rejected for UX: misaligned menu, styling drift). Style via
+  semantic CSS variables to match shadcn `Input` (`h-10`, `rounded-lg`, `border-input`,
+  focus ring); menu renders in a portal below the control (`menuPortalTarget`).
 - **Badges:** map status variants (success/warning/danger/info/neutral) to tokens
   (`bg-primary/15 text-primary` for brand/info, `bg-destructive/15 text-destructive`,
   muted for neutral). Keep the existing variant names.

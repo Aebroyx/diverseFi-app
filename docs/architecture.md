@@ -231,8 +231,8 @@ google/uuid v1.6.0 · x/crypto v0.43.0 · resend-go v2.28.0 · excelize v2.10.0.
 - **State:** Redux Toolkit + react-redux · **Data:** TanStack React Query + axios
 - **Tables:** TanStack React Table · **Excel:** exceljs · **Toasts:** react-hot-toast
 - **UI:** shadcn/ui v4 (CLI-generated in `src/components/ui/shadcn/`), `@base-ui/react`,
-  `cmdk`, `lucide-react`, `next-themes`; `@heroicons/react` still used in some
-  legacy pages (phasing out). **Removed:** `@headlessui/react`, `react-select`.
+  `react-select`, `cmdk`, `lucide-react`, `next-themes`; `@heroicons/react` still used in some
+  legacy pages (phasing out). **Removed:** `@headlessui/react`.
 - **Path alias:** `@/*` → `./src/*`
 
 ### 3.1 App Router structure
@@ -303,7 +303,7 @@ tokens/Tailwind after pull): `button`, `input`, `label`, `textarea`, `switch`,
 | Component | Notes |
 |---|---|
 | `Input.tsx` (`Input`,`Textarea`,`Toggle`) | Wraps shadcn `Input`/`Textarea`/`Switch` + `Label` |
-| `Select.tsx` | shadcn `Select` adapter (replaced react-select) |
+| `Select.tsx` | **`react-select`** adapter (same props API); styled to match shadcn `Input` via CSS vars; portal menu. shadcn `select` in `ui/shadcn/` is unused. |
 | `buttons/PrimaryButton`, `SecondaryButton` | shadcn `Button` |
 | `PrimaryBadge`, `SecondaryBadge` | shadcn `Badge` + variant map |
 | `FormCard.tsx` (`FormSection`,`FormRow`,`FormActions`) | shadcn `Card*`; footer actions right-aligned |
@@ -365,6 +365,7 @@ server-side pagination — preferred; **still uses legacy `gray-*` classes**),
 shadcn/ui v4 is initialized (`components.json`, CLI output in `ui/shadcn/`).
 **Default dark mode** via `next-themes`; **Slate + brand primary** (`#8A73F9`) in
 `globals.css`. Primitives, modals, Sidebar mobile sheet, and Command palette
-migrated. Remaining cleanup: migrate `DataTable`/`Sidebar` off legacy `gray-*`
-classes, finish Heroicons → Lucide, remove legacy CSS alias vars when unused.
+migrated. **`Select.tsx` stays on `react-select`** (shadcn Select tried and reverted).
+Remaining cleanup: migrate `DataTable`/`Sidebar` off legacy `gray-*` classes,
+finish Heroicons → Lucide, remove legacy CSS alias vars when unused.
 See `specs/SPEC-001-shadcn-ui-migration.md` for requirement status.
