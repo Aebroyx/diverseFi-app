@@ -48,12 +48,13 @@
   --popover-foreground: hsl(0 0% 93%);
   --primary: hsl(252 92% 71%);
   --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(217.2 32.6% 17.5%);
-  --secondary-foreground: hsl(210 40% 98%);
-  --muted: hsl(217.2 32.6% 17.5%);
-  --muted-foreground: hsl(215 20.2% 65.1%);
-  --accent: hsl(217.2 32.6% 17.5%);
-  --accent-foreground: hsl(210 40% 98%);
+  /* Neutral slate — aligned with card/background, no blue cast */
+  --secondary: hsl(220 5% 23%);
+  --secondary-foreground: hsl(0 0% 93%);
+  --muted: hsl(220 5% 23%);
+  --muted-foreground: hsl(220 5% 65%);
+  --accent: hsl(220 5% 26%);
+  --accent-foreground: hsl(0 0% 93%);
   --destructive: hsl(0 62.8% 30.6%);
   --destructive-foreground: hsl(210 40% 98%);
   --border: hsl(220 5% 26%);

@@ -46,7 +46,7 @@ export function FormCard({
       <Card className="overflow-hidden shadow-sm">
         <CardContent className="p-6 sm:p-8">{children}</CardContent>
         {actions && (
-          <CardFooter className="border-t bg-muted/50 px-6 py-4 sm:px-8">
+          <CardFooter className="px-6 py-4 sm:px-8">
             {actions}
           </CardFooter>
         )}
