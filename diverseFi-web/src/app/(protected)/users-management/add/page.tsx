@@ -125,24 +125,25 @@ export default function AddUserPage() {
       const userId = newUser?.id;
 
       // Save ONLY custom permission overrides (not inherited ones)
-      if (permissionsRef.current.length > 0 && userId) {
-        // Filter to only include permissions with at least one custom override
-        const customPermissions = permissionsRef.current.filter((p) => p.isCustomized);
+      const customPermissions = permissionsRef.current.filter((p) => p.isCustomized);
 
-        if (customPermissions.length > 0) {
-          const permissionsToSave = customPermissions.map((p) => ({
-            menu_id: p.menuId,
-            can_read: p.canRead,       // nullable: null = inherit, true/false = override
-            can_write: p.canWrite,     // nullable: null = inherit, true/false = override
-            can_update: p.canUpdate,   // nullable: null = inherit, true/false = override
-            can_delete: p.canDelete,   // nullable: null = inherit, true/false = override
-          }));
-
-          await bulkSaveRightsAccess.mutateAsync({
-            userId,
-            permissions: permissionsToSave,
-          });
+      if (customPermissions.length > 0) {
+        if (!userId) {
+          throw new Error('User was created but permission overrides could not be saved');
         }
+
+        const permissionsToSave = customPermissions.map((p) => ({
+          menu_id: p.menuId,
+          can_read: p.canRead,
+          can_write: p.canWrite,
+          can_update: p.canUpdate,
+          can_delete: p.canDelete,
+        }));
+
+        await bulkSaveRightsAccess.mutateAsync({
+          userId,
+          permissions: permissionsToSave,
+        });
       }
 
       toast.success('User created successfully');
