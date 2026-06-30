@@ -7,7 +7,7 @@
 > Read the system docs + the active spec before generating new code; update this
 > file whenever the implementation changes.
 
-**Last assessed:** 2026-06-22
+**Last assessed:** 2026-06-30
 **Repository layout:** monorepo — `diverseFI-api/` (Go/Gin backend) · `diverseFI-web/` (Next.js frontend).
 
 > ⚠️ **Domain context:** The current codebase is a production SaaS **boilerplate
@@ -225,10 +225,14 @@ google/uuid v1.6.0 · x/crypto v0.43.0 · resend-go v2.28.0 · excelize v2.10.0.
 ## 3. Frontend — `diverseFI-web/`
 
 - **Next.js** 16.1.6 (App Router) · **React** 19.2.4 · **TypeScript** 5
-- **Tailwind** 3.4.1 (`darkMode: 'class'`) · PostCSS 8
+- **Tailwind CSS** 4.3.2 (CSS-first — `@import "tailwindcss"`, `@theme inline` in
+  `globals.css`; **no** `tailwind.config.ts`). Class-based dark via
+  `@custom-variant dark (&:where(.dark, .dark *));` + `next-themes`.
 - **State:** Redux Toolkit + react-redux · **Data:** TanStack React Query + axios
 - **Tables:** TanStack React Table · **Excel:** exceljs · **Toasts:** react-hot-toast
-- **UI deps:** `@headlessui/react`, `@heroicons/react`, `react-select`, `cmdk`
+- **UI:** shadcn/ui v4 (CLI-generated in `src/components/ui/shadcn/`), `@base-ui/react`,
+  `cmdk`, `lucide-react`, `next-themes`; `@heroicons/react` still used in some
+  legacy pages (phasing out). **Removed:** `@headlessui/react`, `react-select`.
 - **Path alias:** `@/*` → `./src/*`
 
 ### 3.1 App Router structure
@@ -237,7 +241,7 @@ google/uuid v1.6.0 · x/crypto v0.43.0 · resend-go v2.28.0 · excelize v2.10.0.
 src/app/
 ├── layout.tsx                 # Root: fonts + providers + Toaster + pre-paint theme script
 ├── page.tsx                   # / (renders Navigation directly — outside (protected))
-├── globals.css                # Design tokens + Tailwind directives
+├── globals.css                # HSL design tokens + Tailwind v4 @theme inline
 ├── auth/login/page.tsx        # /auth/login   (raw HTML inputs)
 ├── auth/register/page.tsx     # /auth/register
 ├── api/auth/logout/route.ts   # POST /api/auth/logout (clears cookies)
@@ -259,55 +263,60 @@ src/app/
 
 ### 3.2 Styling system & brand color
 
-- **Tailwind** maps semantic colors to CSS variables (`background`, `foreground`,
-  `primary{,-light,-dark}`, `secondary{,-light,-dark}`, `card-bg`, `input-bg`,
-  `hover-bg`, `border-dark`).
-- **Dark mode:** `class` strategy; custom `ThemeProvider` toggles `.dark` on
-  `<html>`, persists to `localStorage`. **Current default = system preference**
-  (light on SSR) — *not dark-by-default yet*.
-- Tokens are flat **hex** custom properties (no HSL), so shadcn theming will
-  require restructuring `globals.css`.
+- **Tailwind v4** maps semantic colors via `@theme inline` in `globals.css`
+  (`background`, `foreground`, `primary`, `card`, `muted`, `accent`, `border`,
+  `input`, `ring`, …). Legacy aliases (`--card-bg`, `--input-bg`, `--hover-bg`)
+  remain for a few unmigrated consumers (`DataTable`, `Sidebar` partial).
+- **Dark mode:** `next-themes` (`attribute="class"`, `defaultTheme="dark"`,
+  `storageKey="theme"`, `enableSystem`). Pre-paint script in `layout.tsx` sets
+  `.dark` before first paint. **`@custom-variant dark`** binds Tailwind `dark:`
+  to the class toggle (not OS `prefers-color-scheme`).
+- **Tokens:** HSL CSS variables in `globals.css`. Dark surfaces use neutral
+  Discord-like grays; see `design_language.md` §2.2 for authoritative values.
 
-**BRAND / PRIMARY COLOR (authoritative — preserve during migration):**
+**BRAND / PRIMARY COLOR (authoritative — preserve):**
 
-| Token | Hex | HSL (computed) |
+| Token | Hex | HSL |
 |---|---|---|
 | **`--primary`** | **`#8A73F9`** | **`252 92% 71%`** |
 | `--primary-light` | `#BFA7FF` | `255 100% 83%` |
 | `--primary-dark` | `#5F4AD3` | `249 58% 56%` |
 | `--secondary` (lime accent) | `#E2F973` | `73 91% 71%` |
 
-Dark surfaces (Discord-like): `--background #2b2d31`, `--card-bg #313338`,
-`--input-bg #1e1f22`, `--hover-bg #383a40`, `--border #3f4147`.
+Dark surfaces (mapped to semantic tokens): `--background ~#2b2d31`,
+`--card ~#313338`, `--input ~#1e1f22`, `--muted/--accent ~neutral slate`.
 
 ### 3.3 Component inventory
 
-**Layout/shell:** `Navigation`, `Sidebar` (API-driven menus, Headless mobile
-drawer), `TopNav` (Headless Menu dropdown, search trigger, logout),
-`Providers`, `ThemeProvider`, `ThemeToggle`, `CommandPalette` (cmdk),
+**Layout/shell:** `Navigation`, `Sidebar` (API-driven menus; mobile → shadcn `Sheet`),
+`TopNav` (shadcn `DropdownMenu`, search trigger, logout), `Providers`,
+`ThemeProvider` (`next-themes`), `ThemeToggle`, `CommandPalette` (shadcn `Command`),
 `auth/RequireMenuRead`.
 
-**Primitives (shadcn replacement candidates) — `src/components/ui/`:**
+**shadcn primitives — `src/components/ui/shadcn/`** (CLI-generated; customize via
+tokens/Tailwind after pull): `button`, `input`, `label`, `textarea`, `switch`,
+`badge`, `card`, `dialog`, `alert-dialog`, `popover`, `dropdown-menu`, `select`,
+`table`, `command`, `sheet`, …
 
-| Component | API summary | shadcn target |
-|---|---|---|
-| `Input.tsx` (`Input`,`Textarea`,`Toggle`) | `{label,error?,helperText?}` + native attrs; `Toggle{label,description?,checked,onChange,disabled?}` | `Input`/`Textarea`/`Label`, `Switch` |
-| `Select.tsx` | wraps react-select: `{label,options,value,onChange,error?,size?...}` | Radix `Select` (needs adapter) |
-| `buttons/PrimaryButton.tsx` | `{loading?,fullWidth?,variant?:'primary'\|'danger'}` | `Button` (default/destructive) |
-| `buttons/SecondaryButton.tsx` | `{loading?,fullWidth?,variant?:'default'\|'danger'}` | `Button` (outline) |
-| `PrimaryBadge.tsx` | `{variant:success\|danger\|info\|warning\|neutral, icon?}` | `Badge` + variant map |
-| `SecondaryBadge.tsx` | `{variant:green\|blue\|red\|purple\|orange\|gray}` | `Badge` + variant map |
-| `FormCard.tsx` (`FormCard`,`FormSection`,`FormRow`,`FormActions`) | `{title,description?,backHref?,actions?}` | `Card*` + layout helpers |
-| `Table.tsx` | simple generic static table | shadcn `Table` primitives |
+**Adapters/wrappers — `src/components/ui/`** (preserve existing prop APIs):
 
-**Modals (`src/components/modals/`, all Headless UI → Radix):**
-`DeleteModal` → `AlertDialog`; `FilterModal` (Popover) → `Popover`;
-`AdvancedFilterModal` (exports `FilterCondition/Operator/FieldOption`),
-`ProfileModal`, `SettingsModal` → `Dialog`.
+| Component | Notes |
+|---|---|
+| `Input.tsx` (`Input`,`Textarea`,`Toggle`) | Wraps shadcn `Input`/`Textarea`/`Switch` + `Label` |
+| `Select.tsx` | shadcn `Select` adapter (replaced react-select) |
+| `buttons/PrimaryButton`, `SecondaryButton` | shadcn `Button` |
+| `PrimaryBadge`, `SecondaryBadge` | shadcn `Badge` + variant map |
+| `FormCard.tsx` (`FormSection`,`FormRow`,`FormActions`) | shadcn `Card*`; footer actions right-aligned |
+| `Table.tsx` | shadcn `Table` primitives |
+
+**Modals (`src/components/modals/`):** `DeleteModal` → `AlertDialog`;
+`FilterModal` → `Popover`; `AdvancedFilterModal`, `ProfileModal`, `SettingsModal`,
+import wizards → `Dialog`.
 
 **Feature/data:** `MasterTable` (legacy CRUD table), `DataTable/*` (TanStack,
-server-side pagination — preferred), `MenuPermissionsEditor`,
-`RoleMenuPermissionsEditor`, and `users|roles|menus/*` import/export wizards.
+server-side pagination — preferred; **still uses legacy `gray-*` classes**),
+`MenuPermissionsEditor`, `RoleMenuPermissionsEditor`, and
+`users|roles|menus/*` import/export wizards.
 
 ### 3.4 Services, hooks & API integration
 
@@ -343,19 +352,19 @@ server-side pagination — preferred), `MenuPermissionsEditor`,
 1. Backend: no API versioning, no graceful shutdown, GORM AutoMigrate only,
    in-memory rate limiting (single-instance), partial RBAC route coverage.
 2. Frontend: `/` route outside `(protected)`; `proxy.ts` possibly unwired;
-   dual table systems (`MasterTable` legacy vs `DataTable`); no form library;
-   flat-hex CSS tokens (not shadcn HSL); default theme is system pref, not dark.
+   dual table systems (`MasterTable` legacy vs `DataTable`); `DataTable`/`Sidebar`
+   still mix legacy `gray-*` + `dark:` with semantic tokens; no form library;
+   Heroicons not fully migrated to Lucide.
 3. `.env` files required for both apps; web `.env` points API at `:8088`,
    axios fallback uses `:8080` — keep consistent.
 
 ---
 
-## 5. UI/UX Migration Target (shadcn/ui)
+## 5. UI stack (post SPEC-001)
 
-- Init shadcn/ui (adds `components.json`, `tailwind-merge`, `clsx`, `cva`,
-  Radix primitives, `lucide-react`).
-- **Default Dark Mode** via `next-themes` (`attribute="class"`, `defaultTheme="dark"`).
-- **Slate** base theme; **override `--primary` to `#8A73F9` (`252 92% 71%`)** to
-  preserve brand identity.
-- Replace primitives per the mapping in §3.3, consolidating on `DataTable` and
-  migrating Headless UI → Radix incrementally. Keep components small/reusable.
+shadcn/ui v4 is initialized (`components.json`, CLI output in `ui/shadcn/`).
+**Default dark mode** via `next-themes`; **Slate + brand primary** (`#8A73F9`) in
+`globals.css`. Primitives, modals, Sidebar mobile sheet, and Command palette
+migrated. Remaining cleanup: migrate `DataTable`/`Sidebar` off legacy `gray-*`
+classes, finish Heroicons → Lucide, remove legacy CSS alias vars when unused.
+See `specs/SPEC-001-shadcn-ui-migration.md` for requirement status.

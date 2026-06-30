@@ -46,7 +46,7 @@ export function FormCard({
       <Card className="overflow-hidden shadow-sm">
         <CardContent className="p-6 sm:p-8">{children}</CardContent>
         {actions && (
-          <CardFooter className="px-6 py-4 sm:px-8">
+          <CardFooter className="w-full justify-end px-6 py-4 sm:px-8">
             {actions}
           </CardFooter>
         )}
@@ -96,6 +96,8 @@ interface FormActionsProps {
 
 export function FormActions({ children }: FormActionsProps) {
   return (
-    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">{children}</div>
+    <div className="flex w-full flex-col-reverse items-end gap-3 sm:flex-row sm:justify-end">
+      {children}
+    </div>
   );
 }

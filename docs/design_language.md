@@ -7,7 +7,7 @@
 >
 > Pairs with: `system_spec.md` (what) · `architecture.md` (as-is) · `specs/` (work).
 
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-30
 
 ---
 
@@ -44,45 +44,52 @@ variables in `globals.css`, consumed via Tailwind. Components reference the
 
 ### 2.2 Semantic tokens (Slate base + brand override)
 
-Set in `globals.css`. **Override `--primary` to the brand purple in both themes;**
-keep the rest as Slate. (Values below are the shadcn Slate defaults with our
-primary override — apply during SPEC-001.)
+Set in `diverseFI-web/src/app/globals.css`. **Override `--primary` to the brand purple
+in both themes.** Light mode uses standard shadcn Slate values. Dark mode uses
+**neutral Discord-like surfaces** (low-saturation grays) — not the default shadcn
+Slate blue-gray — so footers, hovers, and selection highlights stay cohesive.
+
+Values below match the live `globals.css` (HSL wrapped in `hsl()` in code):
 
 ```css
 :root {                              /* light */
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;            --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;         --popover-foreground: 222.2 84% 4.9%;
-  --primary: 252 92% 71%;       --primary-foreground: 0 0% 100%;   /* brand */
-  --secondary: 210 40% 96.1%;   --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;       --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;      --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%; --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;  --input: 214.3 31.8% 91.4%;
-  --ring: 252 92% 71%;                                            /* brand ring */
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(222.2 84% 4.9%);
+  --card: hsl(0 0% 100%);           --card-foreground: hsl(222.2 84% 4.9%);
+  --popover: hsl(0 0% 100%);        --popover-foreground: hsl(222.2 84% 4.9%);
+  --primary: hsl(252 92% 71%);      --primary-foreground: hsl(0 0% 100%);   /* brand */
+  --secondary: hsl(210 40% 96.1%);  --secondary-foreground: hsl(222.2 47.4% 11.2%);
+  --muted: hsl(210 40% 96.1%);     --muted-foreground: hsl(215.4 16.3% 46.9%);
+  --accent: hsl(210 40% 96.1%);    --accent-foreground: hsl(222.2 47.4% 11.2%);
+  --destructive: hsl(0 84.2% 60.2%); --destructive-foreground: hsl(210 40% 98%);
+  --border: hsl(214.3 31.8% 91.4%); --input: hsl(214.3 31.8% 91.4%);
+  --ring: hsl(252 92% 71%);                                           /* brand ring */
   --radius: 0.5rem;
 }
 
 .dark {                              /* dark — default */
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;       --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;    --popover-foreground: 210 40% 98%;
-  --primary: 252 92% 71%;       --primary-foreground: 0 0% 100%;   /* brand */
-  --secondary: 217.2 32.6% 17.5%; --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;   --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%; --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;  --input: 217.2 32.6% 17.5%;
-  --ring: 252 92% 71%;                                            /* brand ring */
+  --background: hsl(223 7% 18%);    /* ~#2b2d31 app shell */
+  --foreground: hsl(0 0% 93%);
+  --card: hsl(220 6% 20%);          --card-foreground: hsl(0 0% 93%);   /* ~#313338 */
+  --popover: hsl(220 6% 20%);       --popover-foreground: hsl(0 0% 93%);
+  --primary: hsl(252 92% 71%);     --primary-foreground: hsl(0 0% 100%); /* brand */
+  /* Neutral slate — same hue family as card/background; avoid blue cast on muted/accent */
+  --secondary: hsl(220 5% 23%);    --secondary-foreground: hsl(0 0% 93%);
+  --muted: hsl(220 5% 23%);        --muted-foreground: hsl(220 5% 65%);
+  --accent: hsl(220 5% 26%);      --accent-foreground: hsl(0 0% 93%);
+  --destructive: hsl(0 62.8% 30.6%); --destructive-foreground: hsl(210 40% 98%);
+  --border: hsl(220 5% 26%);       --input: hsl(225 6% 13%);             /* ~#1e1f22 */
+  --ring: hsl(252 92% 71%);                                           /* brand ring */
 }
 ```
 
-> Optional: the legacy template's Discord-like dark surfaces (`#2b2d31` bg,
-> `#313338` card, `#1e1f22` input) can be mapped onto `--background/--card/--input`
-> in `.dark` if we prefer that warmer tone over Slate's blue-gray — decide in
-> SPEC-001 and keep it consistent.
+**Legacy aliases** (kept until all consumers migrate off raw `gray-*` / template vars):
+`--primary-light`, `--primary-dark`, `--secondary-light`, `--secondary-dark`,
+`--card-bg`, `--input-bg`, `--hover-bg`. Prefer semantic tokens for new work.
+
+> **Decision (SPEC-001):** Dark surfaces follow the Discord-like neutral palette above.
+> Do **not** revert to shadcn's default dark `--muted`/`--accent` (`217.2 32.6% 17.5%`) —
+> that hue reads as navy blue against our neutral cards.
 
 ### 2.3 Contrast note for the accent
 
@@ -95,11 +102,20 @@ Always keep `--ring` = brand purple so focus states reinforce the brand.
 
 ## 3. Tailwind Usage Rules
 
+- **Tailwind v4 (CSS-first):** Theme config lives in `globals.css` (`@import "tailwindcss"`,
+  `@theme inline`). There is no `tailwind.config.ts`. Do not reintroduce v3-style
+  `darkMode: 'class'` — it has no effect in v4.
+- **Class-based dark mode (required):** After the Tailwind import, keep:
+  `@custom-variant dark (&:where(.dark, .dark *));` so `dark:` utilities follow
+  the `next-themes` `.dark` class on `<html>`, **not** OS `prefers-color-scheme`.
+  Without this line, light mode breaks (dark text/hover styles leak in).
 - **Use semantic utilities:** `bg-background text-foreground`, `bg-card`,
   `bg-primary text-primary-foreground`, `bg-muted text-muted-foreground`,
   `border-border`, `ring-ring`, `bg-destructive`, etc.
 - **Dark variants only when a token can't express it:** prefer tokens that already
-  flip per theme. Use `dark:` only for genuine per-mode tweaks.
+  flip per theme. Use `dark:` only for genuine per-mode tweaks; some legacy pages
+  (e.g. `DataTable`, `Sidebar`) still use `gray-*` + `dark:` — migrate to tokens
+  when touching those files.
 - **Merge classes with `cn()`** (`@/lib/utils`) so overrides compose cleanly.
 - **No raw hex / arbitrary values** (`bg-[#8A73F9]`, `text-[13px]`) in components —
   add a token or use the scale.
@@ -134,20 +150,27 @@ Always keep `--ring` = brand purple so focus states reinforce the brand.
 
 ## 7. Component Conventions (shadcn, customized)
 
+- **Component location:** CLI output goes to `@/components/ui/shadcn/` (see
+  `components.json` `ui` alias). App-facing adapters/wrappers stay in
+  `@/components/ui/` (PascalCase, e.g. `Input.tsx`, `FormCard.tsx`).
 - **Buttons:** `default` = brand primary CTA; `secondary`/`outline` = neutral;
   `destructive` = delete/danger; `ghost` = toolbar/icon actions. One primary CTA
   per view. Keep the legacy `loading`/`fullWidth` props via wrappers.
 - **Inputs/Forms:** shadcn `Input`/`Textarea`/`Label`; error text in `text-destructive`,
   helper text in `text-muted-foreground`; required marker consistent.
+- **FormCard:** page forms use `FormCard` + `FormSection`/`FormRow`; footer actions
+  via `FormActions` — **right-aligned** (`Cancel` left of primary within the group).
 - **Toggle → `Switch`**; checked uses `bg-primary`.
 - **Select:** shadcn `Select` behind our existing props (adapter); themed to match inputs.
 - **Badges:** map status variants (success/warning/danger/info/neutral) to tokens
   (`bg-primary/15 text-primary` for brand/info, `bg-destructive/15 text-destructive`,
   muted for neutral). Keep the existing variant names.
 - **Tables:** `bg-card`, header `text-muted-foreground`, row hover `hover:bg-muted/50`,
-  separators `border-border`. Use shadcn `Table` primitives for styling.
-- **Overlays (Dialog/AlertDialog/Popover/DropdownMenu):** `bg-popover` + border +
-  subtle shadow + scrim; destructive confirms use `AlertDialog` with a destructive CTA.
+  separators `border-border`. Use shadcn `Table` primitives for styling. `DataTable`
+  still uses legacy `gray-*` classes — migrate to semantic tokens when editing it.
+- **Overlays (Dialog/AlertDialog/Popover/DropdownMenu/Sheet/Command):** `bg-popover`
+  + border + subtle shadow + scrim; card/dialog footers use `bg-muted/50` (neutral
+  in dark mode after token fix). Destructive confirms use `AlertDialog`.
 - **Toasts:** keep `react-hot-toast`; theme to tokens (dark surface, accent/destructive
   accents) so they match.
 - **Icons:** `lucide-react` going forward (Heroicons phased out incrementally); size
@@ -156,9 +179,14 @@ Always keep `--ring` = brand purple so focus states reinforce the brand.
 ## 8. Theming Mechanics
 
 - **Strategy:** `class` on `<html>` via `next-themes`, `defaultTheme="dark"`,
-  `attribute="class"`, `disableTransitionOnChange`. No flash of incorrect theme.
-- **Toggle:** keep a working light/dark toggle (`ThemeToggle`) wired to `next-themes`.
-- Persisted to `localStorage`; system preference may seed first visit but default is dark.
+  `attribute="class"`, `storageKey="theme"`, `enableSystem`, `disableTransitionOnChange`.
+- **No flash:** inline script in `layout.tsx` reads `localStorage` (including
+  `system` → `prefers-color-scheme`) and sets/removes `.dark` before first paint;
+  `suppressHydrationWarning` on `<html>`.
+- **Tailwind v4 binding:** `@custom-variant dark (&:where(.dark, .dark *));` in
+  `globals.css` — **required**; v4 defaults `dark:` to OS preference otherwise.
+- **Toggle:** Settings modal (and optional `ThemeToggle`) wired to `next-themes`.
+  Persisted to `localStorage`; default is dark.
 
 ## 9. Do / Don't
 

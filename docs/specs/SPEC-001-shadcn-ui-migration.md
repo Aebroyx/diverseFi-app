@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | IN PROGRESS — Phase 6 complete, Phase 7 cleanup pending |
+| **Status** | IN PROGRESS — migration complete; R6 RBAC smoke test + cleanup pending |
 | **Owner** | AI engineer |
 | **Created** | 2026-06-22 |
 | **Scope** | `diverseFI-web/` only (no backend/API changes) |
@@ -171,3 +171,7 @@ sites don't change (adapter pattern).
 - 2026-06-30: Phase 6 completed — Sidebar mobile → Sheet; CommandPalette →
   CommandDialog; import modals + AdvancedFilterModal → Dialog; removed
   `@headlessui/react` dependency. `npm run build` passes.
+- 2026-06-30: Post-migration fixes — neutral dark `--muted`/`--accent` tokens
+  (no blue cast on footers/hovers); Tailwind v4 `@custom-variant dark` for
+  next-themes class toggle (fixes light mode); FormCard footer actions
+  right-aligned; `design_language.md` + `architecture.md` updated to match.
