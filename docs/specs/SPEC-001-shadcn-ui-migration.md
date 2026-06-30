@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | IN PROGRESS |
+| **Status** | IN PROGRESS — Phase 6 complete, Phase 7 cleanup pending |
 | **Owner** | AI engineer |
 | **Created** | 2026-06-22 |
 | **Scope** | `diverseFI-web/` only (no backend/API changes) |
@@ -36,7 +36,7 @@ template's brand identity, defaulting to dark mode.
 | R2 | Default Dark Mode | App renders dark by default with no flash of light; toggle still works and persists | DONE |
 | R3 | Slate base theme | shadcn Slate HSL tokens applied in `globals.css` for `:root` + `.dark` | DONE |
 | R4 | Preserve brand primary | `--primary` overridden to `#8A73F9` (`252 92% 71%`) in both themes; `--primary-foreground` readable | DONE |
-| R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Select (adapter), Badges, Card/FormCard, modals, Table use shadcn; pages render & function unchanged | IN PROGRESS |
+| R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Select (adapter), Badges, Card/FormCard, modals, Table use shadcn; pages render & function unchanged | DONE |
 | R6 | RBAC-gated UI intact | Auth flows + admin dashboards work after migration; menus/actions still show/hide per role (RBAC gating unchanged) | TODO |
 
 ---
@@ -168,3 +168,6 @@ sites don't change (adapter pattern).
   Table, DeleteModal, ProfileModal, SettingsModal, FilterModal, TopNav dropdown.
   Remaining Headless UI: Sidebar mobile sheet, CommandPalette shell, import
   modals, AdvancedFilterModal (Phase 6 checkpoint).
+- 2026-06-30: Phase 6 completed — Sidebar mobile → Sheet; CommandPalette →
+  CommandDialog; import modals + AdvancedFilterModal → Dialog; removed
+  `@headlessui/react` dependency. `npm run build` passes.

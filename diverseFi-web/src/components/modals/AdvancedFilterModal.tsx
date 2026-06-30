@@ -1,10 +1,18 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, TrashIcon, Bars2Icon, PlusIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/buttons';
 import Select from '@/components/ui/Select';
+import { Input as ShadcnInput } from '@/components/ui/shadcn/input';
+import { Button } from '@/components/ui/shadcn/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/shadcn/dialog';
 import type {
   FilterCondition,
   FilterFieldOption,
@@ -96,11 +104,8 @@ export default function AdvancedFilterModal({
 }: AdvancedFilterModalProps) {
   const [conditions, setConditions] = useState<FilterCondition[]>([]);
 
-  // Convert fields to Select options format
-  const fieldOptions = [
-    { value: '', label: 'Select field' },
-    ...fields.map((f) => ({ value: f.key, label: f.label })),
-  ];
+  // Convert fields to Select options format (placeholder handled by Select, not as empty value)
+  const fieldOptions = fields.map((f) => ({ value: f.key, label: f.label }));
 
   // Initialize conditions when modal opens
   useEffect(() => {
@@ -185,219 +190,153 @@ export default function AdvancedFilterModal({
   };
 
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black/50 transition-opacity" />
-        </Transition.Child>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+      >
+        <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-6 py-4">
+          <DialogTitle>Customize table</DialogTitle>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close">
+            <X className="h-5 w-5" />
+          </Button>
+        </DialogHeader>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-4xl max-h-[90vh] overflow-y-auto transform rounded-lg bg-white dark:bg-card-bg shadow-xl transition-all">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-200 dark:border-border-dark px-6 py-4">
-                  <Dialog.Title as="h2" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Customize table
-                  </Dialog.Title>
-                  <button
-                    onClick={onClose}
-                    className="rounded-lg p-1 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                  >
-                    <XMarkIcon className="h-6 w-6" />
-                  </button>
-                </div>
+        <div className="overflow-y-auto px-6 py-4">
+          <p className="mb-4 text-sm text-muted-foreground">Select and add conditions</p>
 
-                {/* Body */}
-                <div className="px-6 py-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Select and add conditions
-                  </p>
+          <div className="space-y-4">
+            {conditions.map((condition, index) => {
+              const selectedField = fields.find((f) => f.key === condition.field);
+              const availableOperators = selectedField
+                ? getOperatorsForFieldType(selectedField.type)
+                : [{ value: 'equals', label: 'Equals' }];
+              const needsValue = operatorNeedsValue(condition.operator);
+              const valueOptions = selectedField?.options ?? [];
 
-                  {/* Conditions */}
-                  <div className="space-y-3">
-                    {conditions.map((condition, index) => {
-                      const selectedField = fields.find((f) => f.key === condition.field);
-                      const availableOperators = selectedField
-                        ? getOperatorsForFieldType(selectedField.type)
-                        : [{ value: 'equals', label: 'Equals' }];
-                      const needsValue = operatorNeedsValue(condition.operator);
+              return (
+                <div key={condition.id} className="space-y-2">
+                  {index > 0 && (
+                    <div className="flex items-center gap-2 pl-1">
+                      <GripVertical className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <div className="w-28">
+                        <Select
+                          label="Logic"
+                          hideLabel
+                          options={logicOptions}
+                          value={condition.logic}
+                          onChange={(value) =>
+                            handleUpdateCondition(condition.id, {
+                              logic: value as FilterLogic,
+                            })
+                          }
+                          placeholder="Logic"
+                          size="sm"
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                      // Value options for select/boolean fields
-                      const valueOptions = selectedField?.options
-                        ? [{ value: '', label: 'Select value' }, ...selectedField.options]
-                        : [];
+                  <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                    <GripVertical className="mb-2 hidden h-5 w-5 shrink-0 cursor-move text-muted-foreground md:block" />
+                    <span className="mb-2 hidden text-sm text-muted-foreground md:block">Where</span>
 
-                      return (
-                        <div key={condition.id}>
-                          {/* Show AND/OR selector for conditions after the first */}
-                          {index > 0 && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <Bars2Icon className="h-5 w-5 text-gray-400" />
-                              <div className="w-24">
-                                <Select
-                                  label="Logic"
-                                  hideLabel
-                                  options={logicOptions}
-                                  value={condition.logic}
-                                  onChange={(value) =>
-                                    handleUpdateCondition(condition.id, {
-                                      logic: value as FilterLogic,
-                                    })
-                                  }
-                                  placeholder="Logic"
-                                />
-                              </div>
-                            </div>
-                          )}
+                    <Select
+                      label="Field"
+                      hideLabel
+                      options={fieldOptions}
+                      value={condition.field}
+                      onChange={(value) =>
+                        handleUpdateCondition(condition.id, { field: value })
+                      }
+                      placeholder="Select field"
+                      className="min-w-0"
+                    />
 
-                          <div className="flex items-center gap-3">
-                            {/* Drag handle */}
-                            <div className="flex-shrink-0">
-                              <Bars2Icon className="h-5 w-5 text-gray-400 cursor-move" />
-                            </div>
+                    <Select
+                      label="Operator"
+                      hideLabel
+                      options={availableOperators}
+                      value={condition.operator}
+                      onChange={(value) =>
+                        handleUpdateCondition(condition.id, {
+                          operator: value as FilterOperator,
+                        })
+                      }
+                      disabled={!condition.field}
+                      placeholder="Select operator"
+                      className="min-w-0"
+                    />
 
-                            {/* Where label */}
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              Where
-                            </div>
+                    {needsValue ? (
+                      selectedField?.type === 'select' || selectedField?.type === 'boolean' ? (
+                        <Select
+                          label="Value"
+                          hideLabel
+                          options={valueOptions}
+                          value={condition.value}
+                          onChange={(value) =>
+                            handleUpdateCondition(condition.id, { value })
+                          }
+                          disabled={!condition.field}
+                          placeholder="Select value"
+                          className="min-w-0"
+                        />
+                      ) : (
+                        <ShadcnInput
+                          type={
+                            selectedField?.type === 'date'
+                              ? 'date'
+                              : selectedField?.type === 'number'
+                                ? 'number'
+                                : 'text'
+                          }
+                          value={condition.value}
+                          onChange={(e) =>
+                            handleUpdateCondition(condition.id, { value: e.target.value })
+                          }
+                          disabled={!condition.field}
+                          placeholder="Enter value"
+                          className="h-10 w-full min-w-0"
+                        />
+                      )
+                    ) : (
+                      <div className="hidden md:block" />
+                    )}
 
-                            {/* Field selector */}
-                            <div className="flex-1">
-                              <Select
-                                label="Field"
-                                hideLabel
-                                options={fieldOptions}
-                                value={condition.field}
-                                onChange={(value) =>
-                                  handleUpdateCondition(condition.id, { field: value })
-                                }
-                                placeholder="Select field"
-                              />
-                            </div>
-
-                            {/* Operator selector */}
-                            <div className="flex-1">
-                              <Select
-                                label="Operator"
-                                hideLabel
-                                options={availableOperators}
-                                value={condition.operator}
-                                onChange={(value) =>
-                                  handleUpdateCondition(condition.id, {
-                                    operator: value as FilterOperator,
-                                  })
-                                }
-                                disabled={!condition.field}
-                                placeholder="Select operator"
-                              />
-                            </div>
-
-                            {/* Value input */}
-                            {needsValue && (
-                              <>
-                                {selectedField?.type === 'select' || selectedField?.type === 'boolean' ? (
-                                  <div className="flex-1">
-                                    <Select
-                                      label="Value"
-                                      hideLabel
-                                      options={valueOptions}
-                                      value={condition.value}
-                                      onChange={(value) =>
-                                        handleUpdateCondition(condition.id, { value })
-                                      }
-                                      disabled={!condition.field}
-                                      placeholder="Select value"
-                                    />
-                                  </div>
-                                ) : selectedField?.type === 'date' ? (
-                                  <input
-                                    type="date"
-                                    value={condition.value}
-                                    onChange={(e) =>
-                                      handleUpdateCondition(condition.id, { value: e.target.value })
-                                    }
-                                    disabled={!condition.field}
-                                    className="flex-1 rounded-md border border-gray-300 dark:border-border-dark bg-white dark:bg-input-bg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                  />
-                                ) : selectedField?.type === 'number' ? (
-                                  <input
-                                    type="number"
-                                    value={condition.value}
-                                    onChange={(e) =>
-                                      handleUpdateCondition(condition.id, { value: e.target.value })
-                                    }
-                                    disabled={!condition.field}
-                                    placeholder="Enter value"
-                                    className="flex-1 rounded-md border border-gray-300 dark:border-border-dark bg-white dark:bg-input-bg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                  />
-                                ) : (
-                                  <input
-                                    type="text"
-                                    value={condition.value}
-                                    onChange={(e) =>
-                                      handleUpdateCondition(condition.id, { value: e.target.value })
-                                    }
-                                    disabled={!condition.field}
-                                    placeholder="Enter value"
-                                    className="flex-1 rounded-md border border-gray-300 dark:border-border-dark bg-white dark:bg-input-bg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                  />
-                                )}
-                              </>
-                            )}
-
-                            {/* Delete button */}
-                            <button
-                              onClick={() => handleRemoveCondition(condition.id)}
-                              disabled={conditions.length === 1}
-                              className="flex-shrink-0 rounded-lg p-2 text-gray-400 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => handleRemoveCondition(condition.id)}
+                      disabled={conditions.length === 1}
+                      className="mb-0.5 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label="Remove condition"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </Button>
                   </div>
-
-                  {/* Add condition button */}
-                  <button
-                    onClick={handleAddCondition}
-                    className="mt-4 flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-dark"
-                  >
-                    <PlusIcon className="h-5 w-5" />
-                    Add conditions
-                  </button>
                 </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between border-t border-gray-200 dark:border-border-dark px-6 py-4">
-                  <SecondaryButton onClick={handleReset} variant="danger">
-                    Clear all
-                  </SecondaryButton>
-                  <PrimaryButton onClick={handleApply}>Apply</PrimaryButton>
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              );
+            })}
           </div>
+
+          <Button
+            variant="ghost"
+            onClick={handleAddCondition}
+            className="mt-4 gap-2 px-0 text-primary hover:bg-primary/10 hover:text-primary"
+          >
+            <Plus className="h-4 w-4" />
+            Add conditions
+          </Button>
         </div>
-      </Dialog>
-    </Transition.Root>
+
+        <DialogFooter className="mx-0 mb-0 flex-row items-center justify-between gap-3 rounded-none border-t border-border bg-transparent px-6 py-4 sm:justify-between">
+          <SecondaryButton onClick={handleReset} variant="danger">
+            Clear all
+          </SecondaryButton>
+          <PrimaryButton onClick={handleApply}>Apply</PrimaryButton>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

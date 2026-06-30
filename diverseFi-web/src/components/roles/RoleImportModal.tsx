@@ -1,15 +1,24 @@
 'use client';
 
-import { Fragment, useState, useCallback } from 'react';
-import { Dialog, Transition, DialogTitle, RadioGroup } from '@headlessui/react';
+import { useState, useCallback } from 'react';
 import {
-  ArrowUpTrayIcon,
-  DocumentArrowDownIcon,
-  XMarkIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
+  AlertTriangle,
+  CheckCircle,
+  FileDown,
+  Loader2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/buttons';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/shadcn/dialog';
+import { Button } from '@/components/ui/shadcn/button';
+import { cn } from '@/lib/utils';
 import { useValidateRoleImport, useBulkRoleImport, useDownloadRoleTemplate } from '@/hooks/useRoleImport';
 import { parseRolesExcel } from '@/lib/roleExcelUtils';
 import {
@@ -140,7 +149,7 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
           <div className="space-y-4">
             <div className="flex justify-end">
               <SecondaryButton onClick={handleDownloadTemplate}>
-                <DocumentArrowDownIcon className="h-5 w-5" />
+                <FileDown className="h-5 w-5" />
                 Download Template
               </SecondaryButton>
             </div>
@@ -155,7 +164,7 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <ArrowUpTrayIcon className="mb-4 h-12 w-12 text-gray-400" />
+              <Upload className="mb-4 h-12 w-12 text-muted-foreground" />
               <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
                 Drag and drop your Excel file here, or
               </p>
@@ -193,27 +202,8 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
       case 'validating':
         return (
           <div className="flex flex-col items-center justify-center py-12">
-            <svg
-              className="mb-4 h-12 w-12 animate-spin text-primary"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">
               Validating import data...
             </p>
           </div>
@@ -226,7 +216,7 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
           <div className="space-y-4">
             {validationResult.is_valid ? (
               <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-                <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
                 <div>
                   <p className="font-medium text-green-800 dark:text-green-300">
                     All {validationResult.total_rows} rows are valid
@@ -239,7 +229,7 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
             ) : (
               <>
                 <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                  <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
                   <div>
                     <p className="font-medium text-yellow-800 dark:text-yellow-300">
                       {validationResult.valid_rows} of {validationResult.total_rows} rows are valid
@@ -255,81 +245,41 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
 
             {validationResult.is_valid && (
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <p className="text-sm font-medium text-foreground">
                   How should existing roles be handled?
-                </label>
-                <RadioGroup value={updateMode} onChange={setUpdateMode} className="space-y-2">
-                  <RadioGroup.Option value="skip">
-                    {({ checked }) => (
-                      <div
-                        className={`cursor-pointer rounded-lg border p-3 ${
-                          checked
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                            : 'border-gray-200 dark:border-border-dark'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-4 w-4 rounded-full border-2 ${
-                              checked
-                                ? 'border-primary bg-primary'
-                                : 'border-gray-300 dark:border-gray-600'
-                            }`}
-                          >
-                            {checked && (
-                              <div className="flex h-full items-center justify-center">
-                                <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              Skip existing roles
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Only create new roles, skip rows where role name already exists
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </RadioGroup.Option>
-                  <RadioGroup.Option value="update">
-                    {({ checked }) => (
-                      <div
-                        className={`cursor-pointer rounded-lg border p-3 ${
-                          checked
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                            : 'border-gray-200 dark:border-border-dark'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-4 w-4 rounded-full border-2 ${
-                              checked
-                                ? 'border-primary bg-primary'
-                                : 'border-gray-300 dark:border-gray-600'
-                            }`}
-                          >
-                            {checked && (
-                              <div className="flex h-full items-center justify-center">
-                                <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              Update existing roles
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Create new roles and update existing ones (upsert)
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </RadioGroup.Option>
-                </RadioGroup>
+                </p>
+                <div className="space-y-2">
+                  {(
+                    [
+                      {
+                        value: 'skip' as const,
+                        title: 'Skip existing roles',
+                        description:
+                          'Only create new roles, skip rows where role name already exists',
+                      },
+                      {
+                        value: 'update' as const,
+                        title: 'Update existing roles',
+                        description: 'Create new roles and update existing ones (upsert)',
+                      },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setUpdateMode(option.value)}
+                      className={cn(
+                        'w-full rounded-lg border p-3 text-left transition-colors',
+                        updateMode === option.value
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary'
+                          : 'border-border hover:bg-muted/50'
+                      )}
+                    >
+                      <p className="text-sm font-medium text-foreground">{option.title}</p>
+                      <p className="text-xs text-muted-foreground">{option.description}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -338,29 +288,8 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
       case 'importing':
         return (
           <div className="flex flex-col items-center justify-center py-12">
-            <svg
-              className="mb-4 h-12 w-12 animate-spin text-primary"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Importing roles...
-            </p>
+            <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Importing roles...</p>
           </div>
         );
 
@@ -371,7 +300,7 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
           <div className="space-y-4">
             <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
               <div className="flex items-center gap-3">
-                <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
                 <p className="font-medium text-green-800 dark:text-green-300">
                   Import completed successfully
                 </p>
@@ -495,58 +424,24 @@ export default function RoleImportModal({ isOpen, onClose }: RoleImportModalProp
     }
   };
 
+  const footer = renderFooter();
+
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={handleClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl dark:bg-card-bg">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-border-dark">
-                  <DialogTitle as="h3" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {getStepTitle()}
-                  </DialogTitle>
-                  <button
-                    onClick={handleClose}
-                    className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-hover-bg"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Content */}
-                <div className="px-6 py-4">{renderStep()}</div>
-
-                {/* Footer */}
-                <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4 dark:border-border-dark">
-                  {renderFooter()}
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-      </Dialog>
-    </Transition.Root>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="flex-row items-center justify-between border-b border-border px-6 py-4">
+          <DialogTitle>{getStepTitle()}</DialogTitle>
+          <Button variant="ghost" size="icon-sm" onClick={handleClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </DialogHeader>
+        <div className="overflow-y-auto px-6 py-4">{renderStep()}</div>
+        {footer && (
+          <DialogFooter className="border-t border-border px-6 py-4 sm:justify-end">
+            {footer}
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

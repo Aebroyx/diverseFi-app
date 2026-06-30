@@ -54,7 +54,7 @@ const Select = forwardRef<HTMLButtonElement, SelectProps>(
     const selectId = name || label.replace(/\s+/g, '-').toLowerCase();
 
     return (
-      <div className={cn(hideLabel ? '' : 'space-y-2', className)}>
+      <div className={cn('w-full min-w-0', hideLabel ? '' : 'space-y-2', className)}>
         {!hideLabel && (
           <Label htmlFor={selectId} className="text-sm font-medium">
             {label}
@@ -72,7 +72,7 @@ const Select = forwardRef<HTMLButtonElement, SelectProps>(
             name={name}
             size={size === 'sm' ? 'sm' : 'default'}
             aria-invalid={!!error}
-            className="w-full"
+            className="w-full min-w-0"
           >
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
