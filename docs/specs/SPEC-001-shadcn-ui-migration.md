@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | PLAN APPROVED — awaiting go-ahead to execute Phase 0 |
+| **Status** | DONE |
 | **Owner** | AI engineer |
 | **Created** | 2026-06-22 |
 | **Scope** | `diverseFI-web/` only (no backend/API changes) |
@@ -20,8 +20,11 @@ template's brand identity, defaulting to dark mode.
 ## Confirmed decisions (from kickoff Q&A)
 
 - **D1 — Approach:** Plan first (this document), no code changes until approved.
-- **D2 — Select:** Build a **shadcn Select adapter** that keeps the current
-  `Select.tsx` props API so call sites don't change.
+- **D2 — Select (original):** Build a shadcn Select adapter keeping `Select.tsx` props.
+  **Superseded by D5** after UX review.
+- **D5 — Select (final):** Keep **`react-select`** in `Select.tsx`. shadcn/Base UI
+  `Select` was rejected (menu aligns to selected value; styling diverged from Input).
+  Preserve the existing adapter API; theme with semantic CSS variables + portal menu.
 - **D3 — Theme toggle:** **Keep** the light/dark toggle, but **default to dark**.
 - **D4 — CLI is mandatory:** All shadcn components MUST be pulled via the CLI
   (`npx shadcn@latest add <component>`). **Do NOT hand-write component source.**
@@ -32,12 +35,12 @@ template's brand identity, defaulting to dark mode.
 
 | # | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| R1 | Initialize shadcn/ui via CLI | `components.json` exists; `cn()` at `@/lib/utils`; deps installed (`tailwind-merge`, `clsx`, `class-variance-authority`, `tailwindcss-animate`, `lucide-react`, Radix); `npm run build` passes | TODO |
-| R2 | Default Dark Mode | App renders dark by default with no flash of light; toggle still works and persists | TODO |
-| R3 | Slate base theme | shadcn Slate HSL tokens applied in `globals.css` for `:root` + `.dark` | TODO |
-| R4 | Preserve brand primary | `--primary` overridden to `#8A73F9` (`252 92% 71%`) in both themes; `--primary-foreground` readable | TODO |
-| R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Select (adapter), Badges, Card/FormCard, modals, Table use shadcn; pages render & function unchanged | TODO |
-| R6 | RBAC-gated UI intact | Auth flows + admin dashboards work after migration; menus/actions still show/hide per role (RBAC gating unchanged) | TODO |
+| R1 | Initialize shadcn/ui via CLI | `components.json` exists; `cn()` at `@/lib/utils`; deps installed (`tailwind-merge`, `clsx`, `class-variance-authority`, `tailwindcss-animate`, `lucide-react`, Radix); `npm run build` passes | DONE |
+| R2 | Default Dark Mode | App renders dark by default with no flash of light; toggle still works and persists | DONE |
+| R3 | Slate base theme | shadcn Slate HSL tokens applied in `globals.css` for `:root` + `.dark` | DONE |
+| R4 | Preserve brand primary | `--primary` overridden to `#8A73F9` (`252 92% 71%`) in both themes; `--primary-foreground` readable | DONE |
+| R5 | Migrate primitives (CLI-pulled) | Buttons, Input/Textarea/Toggle, Badges, Card/FormCard, modals, Table use shadcn; **`Select.tsx` uses react-select** (adapter API unchanged); pages render & function unchanged | DONE |
+| R6 | RBAC-gated UI intact | Auth flows + admin dashboards work after migration; menus/actions still show/hide per role (RBAC gating unchanged) | DONE |
 
 ---
 
@@ -108,9 +111,10 @@ sites don't change (adapter pattern).
 3. **Input/Textarea/Toggle** — wrap shadcn `Input`/`Textarea` + `Label` (+ error/
    helperText); `Toggle` → shadcn `Switch`.
 4. **FormCard** family — on shadcn `Card*` (preserve `FormSection/Row/Actions`).
-5. **Select adapter (D2)** — wrap shadcn `Select` keeping `Select.tsx`'s props
-   (`options`, `value`, `onChange(value)`, `error`, `size`, etc.). Verify in forms
-   and `AdvancedFilterModal`.
+5. **Select adapter (D2 → D5)** — briefly used shadcn `Select`; **reverted to
+   `react-select`**. Keep `Select.tsx` props (`options`, `value`, `onChange(value)`,
+   `error`, `size`, etc.); style to match Input; verify in forms and
+   `AdvancedFilterModal`.
 6. **Table** — restyle simple `Table.tsx` with shadcn `Table` primitives.
 
 ### Phase 6 — Migrate modals/overlays (R5) — Headless UI → Radix
@@ -160,3 +164,26 @@ sites don't change (adapter pattern).
   `docs/specs/SPEC-001-shadcn-ui-migration.md`; system spec/design docs added.
 - 2026-06-22: Added R6 — verify RBAC-gated UI (auth flows, admin dashboards,
   per-role menu/action visibility) remains intact after migration.
+- 2026-06-30: Phase 0–5 executed. shadcn v4 CLI init + components in
+  `src/components/ui/shadcn/` (avoids macOS case collisions). Upgraded to
+  Tailwind v4 (`@tailwindcss/postcss`, `tw-animate-css`, `shadcn/tailwind.css`).
+  Theme: Slate HSL + brand primary `#8A73F9`; default dark via `next-themes`.
+  Adapters migrated: buttons, Input/Textarea/Toggle, Select, badges, FormCard,
+  Table, DeleteModal, ProfileModal, SettingsModal, FilterModal, TopNav dropdown.
+  Remaining Headless UI: Sidebar mobile sheet, CommandPalette shell, import
+  modals, AdvancedFilterModal (Phase 6 checkpoint).
+- 2026-06-30: Phase 6 completed — Sidebar mobile → Sheet; CommandPalette →
+  CommandDialog; import modals + AdvancedFilterModal → Dialog; removed
+  `@headlessui/react` dependency. `npm run build` passes.
+- 2026-06-30: Post-migration fixes — neutral dark `--muted`/`--accent` tokens
+  (no blue cast on footers/hovers); Tailwind v4 `@custom-variant dark` for
+  next-themes class toggle (fixes light mode); FormCard footer actions
+  right-aligned; `design_language.md` + `architecture.md` updated to match.
+- 2026-06-30: **Select reverted to `react-select`** (decision D5). shadcn/Base UI
+  Select rejected for dropdown UX and Input styling mismatch. `Select.tsx` adapter
+  API unchanged; styles use semantic CSS variables; menu via portal. Docs updated.
+- 2026-06-30: **R6 verified** — manual RBAC smoke test passed (auth, sidebar menus,
+  per-role action gating, CRUD flows). Fixed create-user permission overrides not
+  saving (`userService.createUser` now unwraps `response.data.data`). Spec **DONE**.
+  Deferred follow-up (non-blocking): `DataTable`/`Sidebar` legacy `gray-*` classes,
+  Heroicons → Lucide, remove unused legacy CSS alias vars.

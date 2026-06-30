@@ -4,12 +4,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  TransitionChild,
-  Transition,
-} from '@headlessui/react';
+  Sheet,
+  SheetContent,
+} from '@/components/ui/shadcn/sheet';
 import {
   Cog6ToothIcon,
   HomeIcon,
@@ -441,18 +438,13 @@ function MenuItemComponent({
       {/* Children */}
       {hasChildren && !collapsed && (
         enableExpandAnimation ? (
-          <Transition
-            show={isExpanded}
-            as="div"
-            className="overflow-hidden"
-            enter="transition-[max-height,opacity] duration-300 ease-out"
-            enterFrom="max-h-0 opacity-0"
-            enterTo="max-h-96 opacity-100"
-            leave="transition-all duration-200 ease-in"
-            leaveFrom="opacity-100 translate-y-0 max-h-96"
-            leaveTo="opacity-0 -translate-y-1 max-h-0"
+          <div
+            className={classNames(
+              'grid overflow-hidden transition-all duration-300 ease-out',
+              isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            )}
           >
-            <ul className="mt-1 space-y-1">
+            <ul className="mt-1 min-h-0 space-y-1">
               {menu.children?.map((child) => (
                 <MenuItemComponent
                   key={child.id}
@@ -467,7 +459,7 @@ function MenuItemComponent({
                 />
               ))}
             </ul>
-          </Transition>
+          </div>
         ) : isExpanded ? (
           <div className="overflow-hidden">
             <ul className="mt-1 space-y-1">
@@ -856,38 +848,17 @@ export function Sidebar({
   return (
     <>
       {/* Mobile sidebar */}
-      <Dialog
+      <Sheet
         open={sidebarOpen}
-        onClose={() => setSidebarOpen?.(false)}
-        className="relative z-50 lg:hidden"
+        onOpenChange={(open) => setSidebarOpen?.(open)}
       >
-        <DialogBackdrop
-          transition
-          className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity duration-300 ease-linear data-closed:opacity-0"
-        />
-
-        <div className="fixed inset-0 flex">
-          <DialogPanel
-            transition
-            className="relative mr-16 flex w-full max-w-xs flex-1 transform transition duration-300 ease-in-out data-closed:-translate-x-full"
-          >
-            <TransitionChild>
-              <div className="absolute top-0 left-full flex w-16 justify-center pt-5 duration-300 ease-in-out data-closed:opacity-0">
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen?.(false)}
-                  className="-m-2.5 p-2.5 rounded-full bg-gray-900/50 hover:bg-gray-900/70 transition-colors"
-                >
-                  <span className="sr-only">Close sidebar</span>
-                  <XMarkIcon aria-hidden="true" className="size-6 text-white" />
-                </button>
-              </div>
-            </TransitionChild>
-
-            {renderSidebarContent(true)}
-          </DialogPanel>
-        </div>
-      </Dialog>
+        <SheetContent
+          side="left"
+          className="w-full max-w-xs p-0 lg:hidden sm:max-w-xs"
+        >
+          {renderSidebarContent(true)}
+        </SheetContent>
+      </Sheet>
 
       {/* Static sidebar for desktop */}
       <div className={classNames(

@@ -210,8 +210,8 @@ class UserService {
 
   async createUser(data: CreateUserRequest): Promise<GetUserResponse> {
     try {
-      const response = await axiosInstance.post<GetUserResponse>('/user/create', data);
-      return response.data;
+      const response = await axiosInstance.post<ApiResponse<GetUserResponse>>('/user/create', data);
+      return response.data.data;
     } catch (error) {
       throw handleApiError(error);
     }
@@ -219,8 +219,8 @@ class UserService {
 
   async updateUser(id: string | number, data: UpdateUserRequest): Promise<GetUserResponse> {
     try {
-      const response = await axiosInstance.put<GetUserResponse>(`/user/${id}`, data);
-      return response.data;
+      const response = await axiosInstance.put<ApiResponse<GetUserResponse>>(`/user/${id}`, data);
+      return response.data.data;
     } catch (error) {
       throw handleApiError(error);
     }

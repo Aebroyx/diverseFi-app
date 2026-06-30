@@ -5,7 +5,7 @@
 > `design_language.md` (visual HOW). Pairs with `system_spec.md` (WHAT) and
 > `architecture.md` (AS-IS). Update this file when a convention changes.
 
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-30
 
 ---
 

@@ -1,8 +1,6 @@
 'use client';
 
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { Bars3Icon, BellIcon } from '@heroicons/react/24/outline';
-import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid';
+import { Bell, ChevronDown, Menu as MenuIcon, Search } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { useRouter } from 'next/navigation';
@@ -14,12 +12,18 @@ import { ProfileModal } from './modals/ProfileModal';
 import { CommandPalette } from './CommandPalette';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/shadcn/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/shadcn/dropdown-menu';
 
 const userNavigation = [
   { name: 'Your profile', href: '#' },
   { name: 'Sign out', href: '#' },
 ];
-
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -33,12 +37,15 @@ export function TopNav({ onMenuClick }: TopNavProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
+  const initials = user?.name
+    ? `${user.name.charAt(0)}${user.name.split(' ').length > 1 ? user.name.split(' ')[user.name.split(' ').length - 1].charAt(0) : ''}`.toUpperCase()
+    : '?';
+
   const handleSignOut = async () => {
     try {
-      // Call the logout API endpoint to clear HTTP-only cookies
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
-        credentials: 'include', // Important for cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -48,19 +55,12 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         throw new Error('Failed to logout');
       }
 
-      // Clear all React Query cache to prevent showing old user's data
       queryClient.clear();
-
-      // After cookies are cleared, update Redux state
       dispatch(logout());
-      // Toast success message
       toast.success('Logged out successfully');
-
-      // Redirect to login page
       router.push('/auth/login');
     } catch (error) {
       console.error('Error signing out:', error);
-      // Even if the API call fails, we should still clear the local state
       queryClient.clear();
       dispatch(logout());
       router.push('/auth/login');
@@ -81,90 +81,68 @@ export function TopNav({ onMenuClick }: TopNavProps) {
 
   return (
     <>
-      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-background px-4 shadow-xs sm:gap-x-6 sm:px-6 lg:px-8">
-        <button type="button" onClick={onMenuClick} className="-m-2.5 p-2.5 text-foreground lg:hidden">
+      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-xs sm:gap-x-6 sm:px-6 lg:px-8">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="-m-2.5 lg:hidden"
+        >
           <span className="sr-only">Open sidebar</span>
-          <Bars3Icon aria-hidden="true" className="size-6" />
-        </button>
+          <MenuIcon className="size-6" />
+        </Button>
 
-        {/* Separator */}
-        <div aria-hidden="true" className="h-6 w-px bg-foreground lg:hidden" />
+        <div aria-hidden="true" className="h-6 w-px bg-border lg:hidden" />
 
         <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex flex-1 items-center gap-x-2 text-sm text-gray-500 hover:text-foreground transition-colors"
+            className="flex flex-1 items-center gap-x-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            <MagnifyingGlassIcon
-              aria-hidden="true"
-              className="size-5 text-foreground"
-            />
+            <Search aria-hidden="true" className="size-5" />
             <span className="hidden sm:block">Search...</span>
-            <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-gray-200 dark:border-border-dark bg-gray-100 dark:bg-hover-bg px-1.5 font-mono text-[10px] font-medium text-gray-400">
+            <kbd className="hidden h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
               {typeof navigator !== 'undefined' && navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}K
             </kbd>
           </button>
           <div className="flex items-center gap-x-4 lg:gap-x-6">
-            <button type="button" className="-m-2.5 p-2.5 text-foreground hover:text-foreground">
+            <Button type="button" variant="ghost" size="icon" className="-m-2.5">
               <span className="sr-only">View notifications</span>
-              <BellIcon aria-hidden="true" className="size-6" />
-            </button>
+              <Bell aria-hidden="true" className="size-6" />
+            </Button>
 
-            {/* Separator */}
-            <div aria-hidden="true" className="hidden lg:block lg:h-6 lg:w-px lg:bg-foreground" />
+            <div aria-hidden="true" className="hidden h-6 w-px bg-border lg:block" />
 
-            {/* Profile dropdown */}
-            <Menu as="div" className="relative">
-              <MenuButton className="-m-1.5 flex items-center p-1.5 focus:outline-none">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="-m-1.5 flex items-center p-1.5 outline-none">
                 <span className="sr-only">Open user menu</span>
                 <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
-                    <span className="text-[16px] font-bold text-gray-900">
-                      {user?.name ? `${user.name.charAt(0)}${user.name.split(' ').length > 1 ? user.name.split(' ')[user.name.split(' ').length - 1].charAt(0) : ''}`.toUpperCase() : '?'}
-                    </span>
+                  <span className="text-[16px] font-bold text-secondary-foreground">{initials}</span>
                 </div>
                 <span className="hidden lg:flex lg:items-center">
                   <span aria-hidden="true" className="ml-4 text-sm/6 font-semibold text-foreground">
-                    {user?.name ? (
-                      user.name
-                    ) : (
-                      <Skeleton 
-                        width={96} 
-                        height={16} 
-                        baseColor="#e5e7eb"
-                        highlightColor="#d1d5db"
-                      />
-                    )}
+                    {user?.name ? user.name : <Skeleton width={96} height={16} />}
                   </span>
-                  <ChevronDownIcon aria-hidden="true" className="ml-2 size-5 text-foreground" />
+                  <ChevronDown aria-hidden="true" className="ml-2 size-5 text-muted-foreground" />
                 </span>
-              </MenuButton>
-              <MenuItems
-                transition
-                className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-background py-2 shadow-lg ring-1 ring-primary transition focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
-              >
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
                 {userNavigation.map((item) => (
-                  <MenuItem key={item.name}>
-                    <button
-                      onClick={() => handleNavigation(item.href, item.name)}
-                      className="block w-full px-3 py-1 text-left text-sm/6 text-foreground hover:bg-background hover:text-primary focus:outline-none"
-                    >
-                      {item.name}
-                    </button>
-                  </MenuItem>
+                  <DropdownMenuItem
+                    key={item.name}
+                    onClick={() => handleNavigation(item.href, item.name)}
+                  >
+                    {item.name}
+                  </DropdownMenuItem>
                 ))}
-              </MenuItems>
-            </Menu>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
-      <ProfileModal
-        open={isProfileModalOpen}
-        setOpen={setIsProfileModalOpen}
-      />
-      <CommandPalette
-        open={isCommandPaletteOpen}
-        setOpen={setIsCommandPaletteOpen}
-      />
+      <ProfileModal open={isProfileModalOpen} setOpen={setIsProfileModalOpen} />
+      <CommandPalette open={isCommandPaletteOpen} setOpen={setIsCommandPaletteOpen} />
     </>
   );
-} 
+}
